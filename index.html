@@ -165,8 +165,17 @@
       </div>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-primary btn-lg" id="startRaceBtn">Start Race</button>
+        <button class="btn btn-secondary" id="raceHistoryBtn">History</button>
         <button class="btn btn-secondary" id="cancelRaceBtn">Cancel</button>
       </div>
+    </div>
+  </div>
+
+  <div id="raceHistoryModal" class="modal hidden">
+    <div class="modal-box modal-box-wide">
+      <h2>Race History</h2>
+      <div id="raceHistoryContent" class="race-history-content"></div>
+      <button class="btn btn-primary" id="closeRaceHistory" style="margin-top:16px;">Done</button>
     </div>
   </div>
 

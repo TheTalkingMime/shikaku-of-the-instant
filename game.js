@@ -287,6 +287,8 @@ window.addEventListener('DOMContentLoaded', () => {
   $('raceBtn').addEventListener('click', () => { closeMobileMenu(); openRaceLobby(); });
   $('startRaceBtn').addEventListener('click', startRace);
   $('cancelRaceBtn').addEventListener('click', () => $('raceLobbyModal').classList.add('hidden'));
+  $('raceHistoryBtn').addEventListener('click', () => { $('raceLobbyModal').classList.add('hidden'); openRaceHistory(); });
+  $('closeRaceHistory').addEventListener('click', () => $('raceHistoryModal').classList.add('hidden'));
   $('shareRaceBtn').addEventListener('click', () => {
     navigator.clipboard.writeText(buildShareText()).catch(() => {});
   });
@@ -1159,8 +1161,9 @@ let raceSeed      = '';
 let raceTimes     = [];   // ms per stage
 let raceBanner    = null;
 let raceSnapshots = [];   // { puzzle, userRects, size } per completed stage
-let raceReviewing = false;
-let raceReviewIdx = -1;
+let raceReviewing   = false;
+let raceReviewIdx   = -1;
+let raceReviewSource = 'results'; // 'results' or 'history'
 
 function makeRaceSeed() {
   return 'R' + String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
@@ -1248,7 +1251,7 @@ function onRaceWin() {
   if (raceStage < RACE_STAGES.length) {
     // Next stage — brief delay then load
     updateRaceBanner();
-    setTimeout(() => loadRaceStage(), 300);
+    setTimeout(() => loadRaceStage(), 1000);
   } else {
     // Race complete!
     raceActive = false;
@@ -1271,17 +1274,39 @@ function endRace() {
   let total = 0;
   for (let i = 0; i < RACE_STAGES.length; i++) {
     total += raceTimes[i];
+    const seed = raceSnapshots[i] ? raceSnapshots[i].puzzle.seed : '';
     const row = document.createElement('div');
     row.className = 'race-result-row race-result-clickable';
     row.innerHTML =
       `<span class="race-result-name">${RACE_STAGES[i].label} (${RACE_STAGES[i].size}×${RACE_STAGES[i].size})</span>` +
-      `<span class="race-result-time">${formatTime(raceTimes[i])}</span>`;
-    row.addEventListener('click', () => viewRaceBoard(i));
+      `<span class="race-result-time">${formatTime(raceTimes[i])}</span>` +
+      `<button class="btn btn-secondary btn-sm race-link-btn" data-seed="${seed}" title="Copy link">&#x1F517;</button>`;
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('.race-link-btn')) return;
+      raceReviewSource = 'results';
+      viewRaceBoard(i);
+    });
     list.appendChild(row);
   }
 
+  // Wire up link copy buttons
+  list.querySelectorAll('.race-link-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const seed = btn.dataset.seed;
+      const url = window.location.origin + window.location.pathname + '#seed=' + seed;
+      navigator.clipboard.writeText(url).then(() => {
+        btn.textContent = '✓';
+        setTimeout(() => btn.innerHTML = '&#x1F517;', 1500);
+      });
+    });
+  });
+
   $('raceTotalTime').textContent = `Total: ${formatTime(total)}`;
   $('raceSeedDisplay').textContent = raceSeed;
+
+  // Save to race history
+  saveRaceToHistory();
 
   $('raceResultsModal').classList.remove('hidden');
 }
@@ -1356,7 +1381,125 @@ function exitRaceReview() {
   raceReviewing = false;
   raceReviewIdx = -1;
   if (raceBanner) raceBanner.style.display = 'none';
-  $('raceResultsModal').classList.remove('hidden');
+  if (raceReviewSource === 'history') {
+    openRaceHistory();
+  } else {
+    $('raceResultsModal').classList.remove('hidden');
+  }
+}
+
+// ─── Race History ─────────────────────────────────────────────────────────────
+function loadRaceHistory() {
+  try {
+    return JSON.parse(localStorage.getItem('shikaku_race_history')) || [];
+  } catch { return []; }
+}
+
+function saveRaceToHistory() {
+  const history = loadRaceHistory();
+  let total = 0;
+  for (const t of raceTimes) total += t;
+
+  const stages = raceSnapshots.map((snap, i) => ({
+    seed: snap.puzzle.seed,
+    size: RACE_STAGES[i].size,
+    label: RACE_STAGES[i].label,
+    timeMs: raceTimes[i],
+    userRects: snap.userRects,
+  }));
+
+  history.unshift({
+    raceSeed,
+    date: new Date().toISOString(),
+    totalMs: total,
+    generator: activeGenerator,
+    stages,
+  });
+
+  // Keep last 20 races
+  if (history.length > 20) history.length = 20;
+  localStorage.setItem('shikaku_race_history', JSON.stringify(history));
+}
+
+function openRaceHistory() {
+  const history = loadRaceHistory();
+  const content = $('raceHistoryContent');
+
+  if (history.length === 0) {
+    content.innerHTML = '<div class="stats-empty">No races completed yet.</div>';
+    $('raceHistoryModal').classList.remove('hidden');
+    return;
+  }
+
+  let html = '';
+  for (let h = 0; h < history.length; h++) {
+    const race = history[h];
+    const date = new Date(race.date);
+    const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    const timeStr = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+
+    html += `<div class="race-history-entry">`;
+    html += `<div class="race-history-header" data-race="${h}">`;
+    html += `<div class="race-history-left">`;
+    html += `<span class="race-history-date">${dateStr} ${timeStr}</span>`;
+    html += `<span class="race-history-seed">Seed: ${race.raceSeed}</span>`;
+    html += `</div>`;
+    html += `<span class="race-result-time">${formatTime(race.totalMs)}</span>`;
+    html += `</div>`;
+    html += `<div class="race-history-stages hidden" id="raceHistoryStages_${h}">`;
+    for (let s = 0; s < race.stages.length; s++) {
+      const st = race.stages[s];
+      html += `<div class="race-result-row race-result-clickable race-history-stage" data-race="${h}" data-stage="${s}">`;
+      html += `<span class="race-result-name">${st.label} (${st.size}×${st.size})</span>`;
+      html += `<span class="race-result-time">${formatTime(st.timeMs)}</span>`;
+      html += `</div>`;
+    }
+    html += `</div></div>`;
+  }
+
+  content.innerHTML = html;
+
+  // Toggle expand on header click
+  content.querySelectorAll('.race-history-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const idx = header.dataset.race;
+      const stages = $('raceHistoryStages_' + idx);
+      stages.classList.toggle('hidden');
+      header.classList.toggle('expanded');
+    });
+  });
+
+  // Click stage to view board
+  content.querySelectorAll('.race-history-stage').forEach(row => {
+    row.addEventListener('click', () => {
+      const raceIdx = parseInt(row.dataset.race);
+      const stageIdx = parseInt(row.dataset.stage);
+      viewHistoryBoard(raceIdx, stageIdx);
+    });
+  });
+
+  $('raceHistoryModal').classList.remove('hidden');
+}
+
+function viewHistoryBoard(raceIdx, stageIdx) {
+  const history = loadRaceHistory();
+  const race = history[raceIdx];
+  if (!race || !race.stages[stageIdx]) return;
+
+  const st = race.stages[stageIdx];
+
+  const gen = race.generator || 'natural';
+
+  // Load snapshots into raceSnapshots so viewRaceBoard works
+  raceSnapshots = race.stages.map(s => {
+    const p = generatePuzzle(s.size, s.seed, gen);
+    return { puzzle: p, userRects: s.userRects };
+  });
+  raceTimes = race.stages.map(s => s.timeMs);
+
+  raceReviewSource = 'history';
+  $('raceHistoryModal').classList.add('hidden');
+  viewRaceBoard(stageIdx);
 }
 
 function buildShareText() {

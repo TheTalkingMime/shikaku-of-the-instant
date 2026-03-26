@@ -589,6 +589,12 @@ body.focus-mode #focusExit {
   background: var(--surface-2);
   border-color: var(--border-light);
 }
+.race-link-btn {
+  padding: 2px 6px;
+  font-size: 0.72rem;
+  line-height: 1;
+  margin-left: auto;
+}
 .race-nav-btn {
   padding: 4px 8px;
   font-size: 0.75rem;
@@ -767,6 +773,69 @@ body.focus-mode #focusExit {
   .seed-copy-row {
     flex-wrap: wrap;
   }
+}
+
+/* ── Race History ────────────────────────────────────────────────────── */
+.race-history-content {
+  max-height: 400px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.race-history-entry {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.race-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background var(--transition);
+  background: var(--surface-2);
+}
+.race-history-header:hover {
+  background: var(--border);
+}
+.race-history-header::before {
+  content: '▶';
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-right: 8px;
+  transition: transform 0.2s ease;
+}
+.race-history-header.expanded::before {
+  transform: rotate(90deg);
+}
+.race-history-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.race-history-date {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.race-history-seed {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: 'Consolas', 'SF Mono', monospace;
+}
+.race-history-stages {
+  display: flex;
+  flex-direction: column;
+}
+.race-history-stages.hidden {
+  display: none;
+}
+.race-history-stages .race-result-row {
+  border-radius: 0;
+  border: none;
+  border-top: 1px solid var(--border);
 }
 
 .race-total {
