@@ -620,8 +620,10 @@ function fitToScreen() {
   // which can be inflated by the current canvas size.
   const main = $('mainArea');
   const pad = 48; // breathing room on each axis
+  // Account for race/review banner height if visible
+  const bannerH = raceBanner && raceBanner.style.display !== 'none' ? raceBanner.offsetHeight : 0;
   const availW = main.clientWidth - pad;
-  const availH = main.clientHeight - pad;
+  const availH = main.clientHeight - pad - bannerH;
   const gridNat = CELL * puzzle.size;
   zoom   = Math.min(availW / gridNat, availH / gridNat);
   zoom   = Math.min(3, Math.max(0.1, zoom));
