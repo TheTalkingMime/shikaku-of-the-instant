@@ -124,6 +124,41 @@ let activePalette = 'classic';
 let activeGenerator = 'natural';
 let canvas, ctx;
 
+// ─── Stats / Personal Bests ──────────────────────────────────────────────────
+function loadStats() {
+  try {
+    return JSON.parse(localStorage.getItem('shikaku_stats')) || {};
+  } catch { return {}; }
+}
+
+function saveStats(stats) {
+  localStorage.setItem('shikaku_stats', JSON.stringify(stats));
+}
+
+function recordWin(size, ms) {
+  const stats = loadStats();
+  if (!stats[size]) stats[size] = { played: 0, wins: 0, bestMs: null, totalMs: 0 };
+  const s = stats[size];
+  s.wins++;
+  s.totalMs += ms;
+  const isNewBest = s.bestMs === null || ms < s.bestMs;
+  if (isNewBest) s.bestMs = ms;
+  saveStats(stats);
+  return isNewBest;
+}
+
+function recordPlay(size) {
+  const stats = loadStats();
+  if (!stats[size]) stats[size] = { played: 0, wins: 0, bestMs: null, totalMs: 0 };
+  stats[size].played++;
+  saveStats(stats);
+}
+
+function getBest(size) {
+  const stats = loadStats();
+  return stats[size]?.bestMs ?? null;
+}
+
 // ─── DOM refs ────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 
@@ -143,7 +178,7 @@ window.addEventListener('DOMContentLoaded', () => {
   $('undoBtn').addEventListener('click', undo);
 
   // Size dropdown auto-starts new game
-  $('sizeSelect').addEventListener('change', () => prepareNewGame());
+  $('sizeSelect').addEventListener('change', () => { closeMobileMenu(); prepareNewGame(); });
 
   // Seed loading
   $('loadSeedBtn').addEventListener('click', loadSeed);
@@ -153,7 +188,16 @@ window.addEventListener('DOMContentLoaded', () => {
   $('copySeedBtn').addEventListener('click', () => {
     navigator.clipboard.writeText(currentSeed).then(() => {
       $('copySeedBtn').textContent = 'Copied!';
-      setTimeout(() => $('copySeedBtn').textContent = 'Copy', 1500);
+      setTimeout(() => $('copySeedBtn').textContent = 'Copy Seed', 1500);
+    });
+  });
+
+  // Copy link
+  $('copyLinkBtn').addEventListener('click', () => {
+    const url = window.location.origin + window.location.pathname + '#seed=' + currentSeed;
+    navigator.clipboard.writeText(url).then(() => {
+      $('copyLinkBtn').textContent = 'Copied!';
+      setTimeout(() => $('copyLinkBtn').textContent = 'Copy Link', 1500);
     });
   });
 
@@ -174,10 +218,21 @@ window.addEventListener('DOMContentLoaded', () => {
     $('winModal').classList.add('hidden');
     prepareNewGame();
   });
+  $('shareImageBtn').addEventListener('click', shareAsImage);
 
   // Settings
   $('settingsBtn').addEventListener('click', openSettings);
   $('closeSettings').addEventListener('click', () => $('settingsModal').classList.add('hidden'));
+
+  // Stats
+  $('statsBtn').addEventListener('click', openStats);
+  $('closeStats').addEventListener('click', () => $('statsModal').classList.add('hidden'));
+  $('resetStats').addEventListener('click', () => {
+    if (confirm('Reset all statistics? This cannot be undone.')) {
+      localStorage.removeItem('shikaku_stats');
+      openStats();
+    }
+  });
 
   // Click outside modal to dismiss
   for (const modal of document.querySelectorAll('.modal')) {
@@ -206,6 +261,21 @@ window.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape' && document.body.classList.contains('focus-mode')) exitFocus();
   });
 
+  // Mobile menu
+  $('menuBtn').addEventListener('click', () => {
+    $('sidebar').classList.add('open');
+    $('sidebarBackdrop').classList.add('open');
+  });
+  $('sidebarBackdrop').addEventListener('click', closeMobileMenu);
+
+  // Advanced toggle
+  $('advancedToggle').addEventListener('click', () => {
+    const panel = $('advancedPanel');
+    const btn = $('advancedToggle');
+    panel.classList.toggle('hidden');
+    btn.innerHTML = panel.classList.contains('hidden') ? '&#x25B6; Advanced' : '&#x25BC; Advanced';
+  });
+
   // Pause / resume
   $('pauseBtn').addEventListener('click', togglePause);
   $('resumeBtn').addEventListener('click', togglePause);
@@ -214,7 +284,7 @@ window.addEventListener('DOMContentLoaded', () => {
   $('startGameBtn').addEventListener('click', startFromCover);
 
   // Race mode
-  $('raceBtn').addEventListener('click', openRaceLobby);
+  $('raceBtn').addEventListener('click', () => { closeMobileMenu(); openRaceLobby(); });
   $('startRaceBtn').addEventListener('click', startRace);
   $('cancelRaceBtn').addEventListener('click', () => $('raceLobbyModal').classList.add('hidden'));
   $('shareRaceBtn').addEventListener('click', () => {
@@ -237,6 +307,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   canvas.addEventListener('touchstart', e => {
     e.preventDefault();
+    if (solved) return;
     const cell = getCell(e.touches[0].clientX, e.touches[0].clientY);
     if (!cell) return;
     touchCell = cell;
@@ -269,8 +340,20 @@ window.addEventListener('DOMContentLoaded', () => {
     if ($('fitBtn').classList.contains('active') && puzzle) fitToScreen();
   });
 
-  // --- Initial game setup ---
-  prepareNewGame();
+  // --- URL seed sharing: check for seed in hash ---
+  const hashSeed = window.location.hash.replace(/^#seed=/, '');
+  if (hashSeed && hashSeed.includes('_')) {
+    // Parse size from seed and set dropdown
+    const parts = hashSeed.split('_');
+    const sizeVal = parseInt(parts[0], 10);
+    const sel = $('sizeSelect');
+    for (const opt of sel.options) {
+      if (parseInt(opt.value, 10) === sizeVal) { sel.value = opt.value; break; }
+    }
+    prepareNewGame(hashSeed);
+  } else {
+    prepareNewGame();
+  }
 });
 
 // ─── Seed loading ────────────────────────────────────────────────────────────
@@ -328,10 +411,17 @@ function prepareNewGame(seedStr) {
   resizeCanvas();
   fitToScreen();
 
+  // Record that a game was started
+  recordPlay(size);
+
+  // Update URL hash for sharing
+  window.history.replaceState(null, '', '#seed=' + currentSeed);
+
   // Show cover screen over the grid
   const label = SIZE_LABELS[size] || '';
   $('coverSize').textContent = `${size}×${size}${label ? ' — ' + label : ''}`;
-  $('coverSeed').textContent = `Seed: ${currentSeed}`;
+  const best = getBest(size);
+  $('coverSeed').textContent = `Seed: ${currentSeed}` + (best !== null ? `  ·  Best: ${formatTime(best)}` : '');
   const cover = $('coverScreen');
   cover.style.display = '';
   cover.classList.remove('hidden');
@@ -378,6 +468,49 @@ function getActiveColors() {
 function nextRectColor() {
   const colors = getActiveColors();
   return colors[_colorIdx++ % colors.length];
+}
+
+// ─── Statistics ──────────────────────────────────────────────────────────────
+function openStats() {
+  const stats = loadStats();
+  const content = $('statsContent');
+  const sizes = Object.keys(stats).map(Number).sort((a, b) => a - b);
+
+  if (sizes.length === 0) {
+    content.innerHTML = '<div class="stats-empty">No games played yet. Start solving!</div>';
+    $('statsModal').classList.remove('hidden');
+    return;
+  }
+
+  let totalPlayed = 0, totalWins = 0;
+  for (const s of sizes) { totalPlayed += stats[s].played; totalWins += stats[s].wins; }
+
+  let html = `<div class="stats-totals">
+    <div class="stats-total-card"><div class="stats-total-value">${totalPlayed}</div><div class="stats-total-label">Played</div></div>
+    <div class="stats-total-card"><div class="stats-total-value">${totalWins}</div><div class="stats-total-label">Solved</div></div>
+    <div class="stats-total-card"><div class="stats-total-value">${totalPlayed > 0 ? Math.round(totalWins / totalPlayed * 100) : 0}%</div><div class="stats-total-label">Win Rate</div></div>
+  </div>`;
+
+  html += `<table class="stats-table"><thead><tr>
+    <th>Size</th><th>Played</th><th>Solved</th><th>Best</th><th>Avg</th>
+  </tr></thead><tbody>`;
+
+  for (const size of sizes) {
+    const s = stats[size];
+    const label = SIZE_LABELS[size] || '';
+    const bestStr = s.bestMs !== null ? formatTime(s.bestMs) : '—';
+    const avgStr = s.wins > 0 ? formatTime(Math.round(s.totalMs / s.wins)) : '—';
+    html += `<tr>
+      <td class="stats-size">${size}×${size}${label ? ' ' + label : ''}</td>
+      <td>${s.played}</td>
+      <td>${s.wins}</td>
+      <td class="stats-best">${bestStr}</td>
+      <td>${avgStr}</td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  content.innerHTML = html;
+  $('statsModal').classList.remove('hidden');
 }
 
 // ─── Settings ────────────────────────────────────────────────────────────────
@@ -498,6 +631,12 @@ function fitToScreen() {
   drawAll();
 }
 
+// ─── Mobile menu ─────────────────────────────────────────────────────────────
+function closeMobileMenu() {
+  $('sidebar').classList.remove('open');
+  $('sidebarBackdrop').classList.remove('open');
+}
+
 // ─── Focus mode ──────────────────────────────────────────────────────────────
 function enterFocus() {
   document.body.classList.add('focus-mode');
@@ -510,22 +649,84 @@ function exitFocus() {
 }
 
 // ─── Drawing ─────────────────────────────────────────────────────────────────
+
+// Shared grid renderer used by the main canvas, replay, and share-as-image.
+// cx: canvas context, s: grid size, px: cell pixel size, ox/oy: origin offset,
+// rects: array of placed rects, clues: puzzle clues, opts: { dash, rectLw, shadow }
+function drawGrid(cx, s, px, ox, oy, rects, clues, opts) {
+  const W = px * s;
+  const dash = opts.dash || [3, 5];
+  const rectLw = opts.rectLw || 2;
+  const shadow = opts.shadow !== false;
+
+  // Checkerboard cells
+  for (let r = 0; r < s; r++)
+    for (let c = 0; c < s; c++) {
+      cx.fillStyle = (r + c) % 2 === 0 ? COLOR.cellA : COLOR.cellB;
+      cx.fillRect(ox + c * px, oy + r * px, px, px);
+    }
+
+  // Dotted grid lines
+  cx.strokeStyle = COLOR.gridDot;
+  cx.lineWidth = opts.gridLw || 1.5;
+  cx.setLineDash(dash);
+  cx.lineDashOffset = 0;
+  for (let i = 1; i < s; i++) {
+    cx.beginPath();
+    cx.moveTo(ox + i * px, oy); cx.lineTo(ox + i * px, oy + W);
+    cx.moveTo(ox, oy + i * px); cx.lineTo(ox + W, oy + i * px);
+    cx.stroke();
+  }
+  cx.setLineDash([]);
+  cx.lineDashOffset = 0;
+
+  // Rectangles
+  for (const rect of rects) {
+    const m = opts.rectMargin || 2;
+    cx.beginPath();
+    cx.rect(ox + rect.c * px + m, oy + rect.r * px + m, rect.w * px - m * 2, rect.h * px - m * 2);
+    cx.fillStyle = rect.fill;
+    cx.fill();
+    cx.strokeStyle = rect.stroke;
+    cx.lineWidth = rectLw;
+    cx.stroke();
+  }
+
+  // Clue numbers
+  const fontSize = Math.max(7, Math.round(px * 0.38));
+  cx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
+  cx.textAlign = 'center';
+  cx.textBaseline = 'middle';
+  for (const clue of clues) {
+    const clueCx = ox + (clue.numC + 0.5) * px;
+    const clueCy = oy + (clue.numR + 0.5) * px;
+    const label = String(clue.area);
+    if (shadow) {
+      cx.fillStyle = 'rgba(0,0,0,0.55)';
+      cx.fillText(label, clueCx + 1, clueCy + 1);
+    }
+    cx.fillStyle = COLOR.num;
+    cx.fillText(label, clueCx, clueCy);
+  }
+}
+
 function drawAll() {
   const s  = puzzle.size;
   const px = cellPx;
   const W  = px * s;
 
-  // Background
   ctx.clearRect(0, 0, W, W);
+
+  // Draw base grid (cells, grid lines, clue numbers) without rects —
+  // we need custom per-rect alpha for invalid pulse
+  // Checkerboard + grid lines
   for (let r = 0; r < s; r++)
     for (let c = 0; c < s; c++) {
       ctx.fillStyle = (r + c) % 2 === 0 ? COLOR.cellA : COLOR.cellB;
       ctx.fillRect(c * px, r * px, px, px);
     }
-
-  // Dotted grid lines
   ctx.strokeStyle = COLOR.gridDot;
-  ctx.lineWidth   = 1.5;
+  ctx.lineWidth = 1.5;
   ctx.setLineDash([3, 5]);
   ctx.lineDashOffset = 0;
   for (let i = 1; i < s; i++) {
@@ -542,14 +743,28 @@ function drawAll() {
   for (const rect of userRects) {
     const invalid = getRectState(rect) !== 'ok';
     if (invalid) ctx.globalAlpha = 0.35 + 0.45 * pulse;
-    drawRect(rect.r, rect.c, rect.w, rect.h, rect.fill, rect.stroke, 2.5);
+    const m = 2;
+    ctx.beginPath();
+    ctx.rect(rect.c * px + m, rect.r * px + m, rect.w * px - m * 2, rect.h * px - m * 2);
+    ctx.fillStyle = rect.fill;
+    ctx.fill();
+    ctx.strokeStyle = rect.stroke;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
     if (invalid) ctx.globalAlpha = 1;
   }
 
   // Drag preview outline
   if (dragging && dragStart && dragEnd) {
     const dr = dragRect();
-    drawRect(dr.r, dr.c, dr.w, dr.h, COLOR.dragFill, COLOR.dragStroke, 2);
+    const m = 2;
+    ctx.beginPath();
+    ctx.rect(dr.c * px + m, dr.r * px + m, dr.w * px - m * 2, dr.h * px - m * 2);
+    ctx.fillStyle = COLOR.dragFill;
+    ctx.fill();
+    ctx.strokeStyle = COLOR.dragStroke;
+    ctx.lineWidth = 2;
+    ctx.stroke();
   }
 
   // Clue numbers
@@ -588,21 +803,6 @@ function drawAll() {
     ctx.fillStyle = '#fff';
     ctx.fillText(label, lx, ly);
   }
-}
-
-function drawRect(r, c, w, h, fill, stroke, lw) {
-  const m = 2;
-  const x  = c * cellPx + m;
-  const y  = r * cellPx + m;
-  const rw = w * cellPx - m * 2;
-  const rh = h * cellPx - m * 2;
-  ctx.beginPath();
-  ctx.rect(x, y, rw, rh);
-  ctx.fillStyle = fill;
-  ctx.fill();
-  ctx.strokeStyle = stroke;
-  ctx.lineWidth = lw;
-  ctx.stroke();
 }
 
 // ─── Validation ──────────────────────────────────────────────────────────────
@@ -654,7 +854,7 @@ function getCellClamped(clientX, clientY) {
 }
 
 function onMouseDown(e) {
-  if (e.button !== 0 || paused) return;
+  if (e.button !== 0 || paused || solved) return;
   const cell = getCell(e.clientX, e.clientY);
   if (!cell) return;
   dragging  = true;
@@ -672,15 +872,23 @@ function onMouseMove(e) {
   }
 }
 
-function onMouseUp() {
+function onMouseUp(e) {
   if (!dragging) return;
+  if (e.button !== 0) return;
   dragging = false;
   commitDrag();
 }
 
 function onRightClick(e) {
   e.preventDefault();
-  if (paused) return;
+  if (paused || solved) return;
+  if (dragging) {
+    dragging  = false;
+    dragStart = null;
+    dragEnd   = null;
+    drawAll();
+    return;
+  }
   const cell = getCell(e.clientX, e.clientY);
   if (!cell) return;
   removeRectAt(cell.r, cell.c);
@@ -728,7 +936,7 @@ function removeRectAt(r, c) {
 }
 
 function clearAll() {
-  if (userRects.length === 0) return;
+  if (solved || userRects.length === 0) return;
   history.push({ type: 'clearAll', rects: [...userRects] });
   userRects = [];
   rebuildOwner();
@@ -738,7 +946,7 @@ function clearAll() {
 }
 
 function undo() {
-  if (history.length === 0) return;
+  if (solved || history.length === 0) return;
   const action = history.pop();
   if (action.type === 'add') {
     userRects.pop();
@@ -765,18 +973,32 @@ function checkWin() {
     }
   solved = true;
   stopTimer();
+  showWinFlash();
 
   if (raceActive) {
     onRaceWin();
     return;
   }
 
-  $('winTime').textContent = `Solved in ${formatTime(timerMs)}`;
+  const isNewBest = recordWin(puzzle.size, timerMs);
+  const best = getBest(puzzle.size);
+  let winText = `Solved in ${formatTime(timerMs)}`;
+  if (isNewBest) winText += '  —  New personal best!';
+  else if (best !== null) winText += `  (Best: ${formatTime(best)})`;
+  $('winTime').textContent = winText;
   $('seedDisplay').textContent = currentSeed;
   setTimeout(() => {
     $('winModal').classList.remove('hidden');
     renderReplay();
-  }, 400);
+  }, 600);
+}
+
+// ─── Win flash ───────────────────────────────────────────────────────────────
+function showWinFlash() {
+  const el = document.createElement('div');
+  el.className = 'win-flash';
+  $('gridWrapper').appendChild(el);
+  el.addEventListener('animationend', () => el.remove());
 }
 
 // ─── Timer ───────────────────────────────────────────────────────────────────
@@ -834,45 +1056,9 @@ function renderReplay() {
   const lastDelay = 2000;
 
   function drawFrame(rectsSnap) {
-    const s = puzzle.size, px = rCell, W = rpx;
-    rctx.clearRect(0, 0, W, W);
-    for (let r = 0; r < s; r++)
-      for (let c = 0; c < s; c++) {
-        rctx.fillStyle = (r + c) % 2 === 0 ? COLOR.cellA : COLOR.cellB;
-        rctx.fillRect(c * px, r * px, px, px);
-      }
-
-    rctx.strokeStyle = COLOR.gridDot;
-    rctx.lineWidth = 1;
-    rctx.setLineDash([2, 4]);
-    rctx.lineDashOffset = 0;
-    for (let i = 1; i < s; i++) {
-      rctx.beginPath();
-      rctx.moveTo(i * px, 0); rctx.lineTo(i * px, W);
-      rctx.moveTo(0, i * px); rctx.lineTo(W, i * px);
-      rctx.stroke();
-    }
-    rctx.setLineDash([]);
-    rctx.lineDashOffset = 0;
-
-    for (const rect of rectsSnap) {
-      const m = 1;
-      rctx.beginPath();
-      rctx.rect(rect.c * px + m, rect.r * px + m, rect.w * px - m * 2, rect.h * px - m * 2);
-      rctx.fillStyle = rect.fill;
-      rctx.fill();
-      rctx.strokeStyle = rect.stroke;
-      rctx.lineWidth = 1.5;
-      rctx.stroke();
-    }
-
-    const fontSize = Math.max(7, Math.round(px * 0.38));
-    rctx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
-    rctx.textAlign    = 'center';
-    rctx.textBaseline = 'middle';
-    rctx.fillStyle = COLOR.num;
-    for (const clue of puzzle.clues)
-      rctx.fillText(String(clue.area), (clue.numC + 0.5) * px, (clue.numR + 0.5) * px);
+    rctx.clearRect(0, 0, rpx, rpx);
+    drawGrid(rctx, puzzle.size, rCell, 0, 0, rectsSnap, puzzle.clues,
+      { dash: [2, 4], gridLw: 1, rectLw: 1.5, rectMargin: 1, shadow: false });
   }
 
   let frame = 0;
@@ -900,6 +1086,64 @@ function renderReplay() {
   observer.observe($('winModal'), { attributes: true, attributeFilter: ['class'] });
 }
 
+// ─── Share as Image ──────────────────────────────────────────────────────────
+function shareAsImage() {
+  const pad = 20;
+  const header = 40;
+  const footer = 30;
+  const imgCell = Math.max(20, Math.min(40, Math.floor(600 / puzzle.size)));
+  const gridPx = imgCell * puzzle.size;
+  const totalW = gridPx + pad * 2;
+  const totalH = gridPx + pad * 2 + header + footer;
+
+  const c = document.createElement('canvas');
+  c.width = totalW;
+  c.height = totalH;
+  const cx = c.getContext('2d');
+
+  // Background
+  cx.fillStyle = '#0e1420';
+  cx.fillRect(0, 0, totalW, totalH);
+
+  // Header
+  cx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+  cx.fillStyle = '#e2e6f0';
+  cx.textAlign = 'left';
+  cx.textBaseline = 'middle';
+  cx.fillText('Shikaku', pad, pad + header / 2);
+  cx.font = '13px "Segoe UI", Arial, sans-serif';
+  cx.fillStyle = '#6b7f9a';
+  cx.textAlign = 'right';
+  cx.fillText(formatTime(timerMs), totalW - pad, pad + header / 2);
+
+  // Grid
+  const ox = pad, oy = pad + header;
+  drawGrid(cx, puzzle.size, imgCell, ox, oy, userRects, puzzle.clues,
+    { dash: [2, 4], gridLw: 1, rectLw: 2, rectMargin: 1.5, shadow: true });
+
+  // Footer
+  cx.font = '11px "Segoe UI", Arial, sans-serif';
+  cx.fillStyle = '#4a5b72';
+  cx.textAlign = 'left';
+  const size = puzzle.size;
+  const label = SIZE_LABELS[size] || '';
+  cx.fillText(`${size}×${size}${label ? ' ' + label : ''}  ·  Seed: ${currentSeed}`, pad, oy + gridPx + footer / 2 + 4);
+
+  // Copy to clipboard
+  c.toBlob(blob => {
+    navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(() => {
+      $('shareImageBtn').textContent = 'Copied!';
+      setTimeout(() => $('shareImageBtn').textContent = 'Copy Image', 1500);
+    }).catch(() => {
+      // Fallback: download if clipboard fails
+      const link = document.createElement('a');
+      link.download = `shikaku_${currentSeed}.png`;
+      link.href = c.toDataURL('image/png');
+      link.click();
+    });
+  }, 'image/png');
+}
+
 // ─── Race Mode ────────────────────────────────────────────────────────────────
 const RACE_STAGES = [
   { size: 5,  label: 'Easy' },
@@ -909,11 +1153,14 @@ const RACE_STAGES = [
   { size: 40, label: 'Master' },
 ];
 
-let raceActive  = false;
-let raceStage   = 0;
-let raceSeed    = '';
-let raceTimes   = [];   // ms per stage
-let raceBanner  = null;
+let raceActive    = false;
+let raceStage     = 0;
+let raceSeed      = '';
+let raceTimes     = [];   // ms per stage
+let raceBanner    = null;
+let raceSnapshots = [];   // { puzzle, userRects, size } per completed stage
+let raceReviewing = false;
+let raceReviewIdx = -1;
 
 function makeRaceSeed() {
   return 'R' + String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
@@ -933,10 +1180,13 @@ function openRaceLobby() {
 
 function startRace() {
   const inputSeed = $('raceSeedInput').value.trim();
-  raceSeed  = inputSeed || makeRaceSeed();
-  raceStage = 0;
-  raceTimes = [];
-  raceActive = true;
+  raceSeed      = inputSeed || makeRaceSeed();
+  raceStage     = 0;
+  raceTimes     = [];
+  raceSnapshots = [];
+  raceReviewing = false;
+  raceReviewIdx = -1;
+  raceActive    = true;
 
   $('raceLobbyModal').classList.add('hidden');
 
@@ -989,6 +1239,10 @@ function loadRaceStage() {
 
 function onRaceWin() {
   raceTimes.push(timerMs);
+  raceSnapshots.push({
+    puzzle: puzzle,
+    userRects: userRects.map(r => ({ ...r })),
+  });
 
   raceStage++;
   if (raceStage < RACE_STAGES.length) {
@@ -1018,10 +1272,11 @@ function endRace() {
   for (let i = 0; i < RACE_STAGES.length; i++) {
     total += raceTimes[i];
     const row = document.createElement('div');
-    row.className = 'race-result-row';
+    row.className = 'race-result-row race-result-clickable';
     row.innerHTML =
       `<span class="race-result-name">${RACE_STAGES[i].label} (${RACE_STAGES[i].size}×${RACE_STAGES[i].size})</span>` +
       `<span class="race-result-time">${formatTime(raceTimes[i])}</span>`;
+    row.addEventListener('click', () => viewRaceBoard(i));
     list.appendChild(row);
   }
 
@@ -1031,13 +1286,91 @@ function endRace() {
   $('raceResultsModal').classList.remove('hidden');
 }
 
+function viewRaceBoard(idx) {
+  if (!raceSnapshots[idx]) return;
+  raceReviewing = true;
+  raceReviewIdx = idx;
+
+  const snap = raceSnapshots[idx];
+  const stage = RACE_STAGES[idx];
+
+  // Set the size dropdown so fitToScreen works
+  const sel = $('sizeSelect');
+  for (const opt of sel.options) {
+    if (parseInt(opt.value, 10) === stage.size) { sel.value = opt.value; break; }
+  }
+
+  // Load the snapshot onto the canvas
+  puzzle    = snap.puzzle;
+  userRects = snap.userRects.map(r => ({ ...r }));
+  owner     = makeOwner(puzzle.size);
+  rebuildOwner();
+  solved    = true; // read-only
+  currentSeed = puzzle.seed;
+
+  resizeCanvas();
+  fitToScreen();
+  drawAll();
+
+  // Hide cover screen
+  const cover = $('coverScreen');
+  cover.classList.add('hidden');
+  cover.style.display = 'none';
+
+  // Show review banner
+  if (!raceBanner) {
+    raceBanner = document.createElement('div');
+    raceBanner.className = 'race-banner';
+    raceBanner.id = 'raceBanner';
+    const main = $('mainArea');
+    main.insertBefore(raceBanner, main.firstChild);
+  }
+  raceBanner.style.display = '';
+  updateReviewBanner();
+
+  $('raceResultsModal').classList.add('hidden');
+}
+
+function updateReviewBanner() {
+  const stage = RACE_STAGES[raceReviewIdx];
+  const hasPrev = raceReviewIdx > 0;
+  const hasNext = raceReviewIdx < raceSnapshots.length - 1;
+  raceBanner.innerHTML =
+    `<button class="btn btn-icon btn-sm race-nav-btn" id="racePrev" ${hasPrev ? '' : 'disabled'}>&#x25C0;</button>` +
+    `<span class="race-label">REVIEW</span>` +
+    `<span class="race-progress">Stage ${raceReviewIdx + 1}/5: ${stage.label} (${stage.size}×${stage.size})</span>` +
+    `<span class="race-result-time">${formatTime(raceTimes[raceReviewIdx])}</span>` +
+    `<button class="btn btn-icon btn-sm race-nav-btn" id="raceNext" ${hasNext ? '' : 'disabled'}>&#x25B6;</button>` +
+    `<button class="btn btn-secondary btn-sm" id="raceExitReview">Done</button>`;
+
+  $('racePrev').addEventListener('click', () => {
+    if (raceReviewIdx > 0) viewRaceBoard(raceReviewIdx - 1);
+  });
+  $('raceNext').addEventListener('click', () => {
+    if (raceReviewIdx < raceSnapshots.length - 1) viewRaceBoard(raceReviewIdx + 1);
+  });
+  $('raceExitReview').addEventListener('click', exitRaceReview);
+}
+
+function exitRaceReview() {
+  raceReviewing = false;
+  raceReviewIdx = -1;
+  if (raceBanner) raceBanner.style.display = 'none';
+  $('raceResultsModal').classList.remove('hidden');
+}
+
 function buildShareText() {
   let total = 0;
   for (const t of raceTimes) total += t;
-  let text = `Shikaku Race (${raceSeed})\n`;
+
+  let text = `🧩 Shikaku Race\n`;
+  text += `━━━━━━━━━━━━━━━━━\n`;
   for (let i = 0; i < RACE_STAGES.length; i++) {
-    text += `${RACE_STAGES[i].label} (${RACE_STAGES[i].size}×${RACE_STAGES[i].size}): ${formatTime(raceTimes[i])}\n`;
+    const s = RACE_STAGES[i];
+    text += `${s.size}×${s.size} ${s.label.padEnd(8)} ${formatTime(raceTimes[i])}\n`;
   }
-  text += `Total: ${formatTime(total)}`;
+  text += `━━━━━━━━━━━━━━━━━\n`;
+  text += `⏱️ Total: ${formatTime(total)}\n`;
+  text += `🌱 Seed: ${raceSeed}`;
   return text;
 }

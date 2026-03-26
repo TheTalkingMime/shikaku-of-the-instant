@@ -4,10 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Shikaku</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%230e1420'/><rect x='2' y='2' width='13' height='18' rx='1' fill='%235b8fd4' opacity='.75'/><rect x='17' y='2' width='13' height='10' rx='1' fill='%23d28237' opacity='.75'/><rect x='17' y='14' width='13' height='16' rx='1' fill='%23af4141' opacity='.75'/><rect x='2' y='22' width='13' height='8' rx='1' fill='%23824bb9' opacity='.75'/></svg>">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="app">
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-top">
         <h1 class="logo">Shikaku</h1>
@@ -34,10 +36,10 @@
         </div>
 
         <div class="sb-section">
-          <label class="sb-label">Seed</label>
-          <div class="seed-row">
-            <input type="text" id="seedInput" placeholder="Paste seed..." spellcheck="false">
-            <button class="btn btn-secondary btn-sm" id="loadSeedBtn">Load</button>
+          <div class="actions-row">
+            <button class="btn btn-icon action-btn" id="undoBtn" title="Undo">&#x21A9;</button>
+            <button class="btn btn-icon action-btn" id="clearBtn" title="Clear all">Clear</button>
+            <button class="btn btn-icon action-btn" id="fullscreenBtn" title="Focus mode">&#x26F6;</button>
           </div>
         </div>
 
@@ -47,28 +49,31 @@
 
         <div class="sb-divider"></div>
 
-        <div class="sb-section">
-          <label class="sb-label">Zoom</label>
-          <div class="zoom-row">
-            <button class="zoom-btn active" id="fitBtn">Fit</button>
-            <button class="zoom-btn" data-zoom="1">100%</button>
-            <button class="zoom-btn" data-zoom="1.25">125%</button>
-            <button class="zoom-btn" data-zoom="1.5">150%</button>
-            <button class="zoom-btn" data-zoom="2">200%</button>
+        <button class="btn btn-ghost btn-block sb-toggle" id="advancedToggle">&#x25B6; Advanced</button>
+        <div class="sb-advanced hidden" id="advancedPanel">
+          <div class="sb-section">
+            <label class="sb-label">Seed</label>
+            <div class="seed-row">
+              <input type="text" id="seedInput" placeholder="Paste seed..." spellcheck="false">
+              <button class="btn btn-secondary btn-sm" id="loadSeedBtn">Load</button>
+            </div>
           </div>
-        </div>
 
-        <div class="sb-section">
-          <label class="sb-label">Actions</label>
-          <div class="actions-row">
-            <button class="btn btn-icon action-btn" id="undoBtn" title="Undo">&#x21A9;</button>
-            <button class="btn btn-icon action-btn" id="clearBtn" title="Clear all">Clear</button>
-            <button class="btn btn-icon action-btn" id="fullscreenBtn" title="Focus mode">&#x26F6;</button>
+          <div class="sb-section">
+            <label class="sb-label">Zoom</label>
+            <div class="zoom-row">
+              <button class="zoom-btn active" id="fitBtn">Fit</button>
+              <button class="zoom-btn" data-zoom="1">100%</button>
+              <button class="zoom-btn" data-zoom="1.25">125%</button>
+              <button class="zoom-btn" data-zoom="1.5">150%</button>
+              <button class="zoom-btn" data-zoom="2">200%</button>
+            </div>
           </div>
         </div>
       </div>
 
       <div class="sidebar-bottom">
+        <button class="btn btn-ghost btn-block" id="statsBtn">&#x1F4CA; Statistics</button>
         <button class="btn btn-ghost btn-block" id="settingsBtn">&#x2699; Settings</button>
         <div class="help-dropdown">
           <button class="btn btn-ghost btn-block" id="helpBtn">? Help</button>
@@ -81,6 +86,7 @@
     </aside>
 
     <main class="main-area" id="mainArea">
+      <button class="btn btn-icon mobile-menu-btn" id="menuBtn">&#x2630;</button>
       <div id="focusTimer"></div>
       <button class="btn btn-icon" id="focusExit">&#10005; Exit Focus</button>
 
@@ -129,13 +135,15 @@
         <label>Share this board:</label>
         <div class="seed-copy-row">
           <code id="seedDisplay"></code>
-          <button class="btn btn-secondary btn-sm" id="copySeedBtn">Copy</button>
+          <button class="btn btn-secondary btn-sm" id="copySeedBtn">Copy Seed</button>
+          <button class="btn btn-secondary btn-sm" id="copyLinkBtn">Copy Link</button>
         </div>
       </div>
       <canvas id="replayCanvas" style="width:100%;border-radius:6px;margin-bottom:12px;display:none;"></canvas>
       <p id="replayStatus" style="font-size:0.85rem;color:var(--text-dim);margin-bottom:12px;"></p>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-primary" id="nextGameBtn">New Game</button>
+        <button class="btn btn-secondary" id="shareImageBtn">Copy Image</button>
       </div>
     </div>
   </div>
@@ -193,6 +201,17 @@
         <div class="palette-list" id="paletteList"></div>
       </div>
       <button class="btn btn-primary" id="closeSettings">Done</button>
+    </div>
+  </div>
+
+  <div id="statsModal" class="modal hidden">
+    <div class="modal-box modal-box-wide">
+      <h2>Statistics</h2>
+      <div id="statsContent" class="stats-content"></div>
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button class="btn btn-primary" id="closeStats">Done</button>
+        <button class="btn btn-secondary" id="resetStats">Reset Stats</button>
+      </div>
     </div>
   </div>
 
