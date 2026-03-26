@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How Board Generation Works — Shikaku</title>
+  <style>
+    body {
+      background: #0e1420;
+      color: #d8dce8;
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      line-height: 1.7;
+    }
+    h1 { color: #fff; font-size: 1.8rem; margin-bottom: 8px; }
+    h2 { color: #5b8fd4; font-size: 1.3rem; margin-top: 36px; }
+    a { color: #5b8fd4; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    hr { border: none; border-top: 1px solid #243044; margin: 32px 0; }
+    .dim { color: #6b7f9a; }
+    code {
+      background: #151d2b;
+      border: 1px solid #243044;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 0.92em;
+      color: #e8a060;
+    }
+    .algo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 24px 0;
+    }
+    .algo-card {
+      display: block;
+      background: #151d2b;
+      border: 1px solid #243044;
+      border-radius: 10px;
+      padding: 20px;
+      transition: border-color 0.15s, background 0.15s;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .algo-card:hover {
+      border-color: #5b8fd4;
+      background: #1a2435;
+      text-decoration: none;
+    }
+    .algo-card h3 {
+      margin: 0 0 6px;
+      font-size: 1.05rem;
+      color: #fff;
+    }
+    .algo-card p {
+      margin: 0;
+      font-size: 0.88rem;
+      color: #6b7f9a;
+      line-height: 1.5;
+    }
+    .algo-card .tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+    .tag-default { background: rgba(91,143,212,0.2); color: #5b8fd4; }
+    .tag-advanced { background: rgba(130,75,185,0.2); color: #b088e0; }
+    pre {
+      background: #151d2b;
+      border: 1px solid #243044;
+      border-radius: 8px;
+      padding: 16px 20px;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      color: #d8dce8;
+    }
+    pre code { background: none; border: none; padding: 0; color: inherit; }
+    .note {
+      background: #151d2b;
+      border-left: 3px solid #5b8fd4;
+      padding: 12px 16px;
+      margin: 16px 0;
+      border-radius: 0 6px 6px 0;
+      font-size: 0.9rem;
+      color: #8a9db8;
+    }
+    @media (max-width: 600px) {
+      .algo-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>How Board Generation Works</h1>
+<p class="dim">A guide to the five Shikaku puzzle generators and how they create boards.</p>
+
+<hr>
+
+<h2>Overview</h2>
+
+<p>Every generator produces a <strong>complete tiling</strong> of the grid — a set of non-overlapping
+rectangles where every cell belongs to exactly one rectangle. Each rectangle becomes a clue,
+with its area as the number shown to the player.</p>
+
+<p>All generators share two common pieces:</p>
+<ol>
+  <li><strong>Seeded PRNG</strong> — a deterministic Mulberry32 random number generator, so the same
+  seed always produces the exact same board</li>
+  <li><strong>Number placement</strong> — each clue number is positioned at a random cell within its
+  rectangle (or at the most-constrained cell, in the Unique generator)</li>
+</ol>
+
+<h2>The Generators</h2>
+
+<div class="algo-grid">
+  <a class="algo-card" href="how-natural.html">
+    <span class="tag tag-default">Default</span>
+    <h3>Natural</h3>
+    <p>Recursive guillotine cuts with a sigmoid stopping rule. Produces heavy-tailed size
+    distributions — large blocks coexist with tiny fillers. Mimics professionally generated boards.</p>
+  </a>
+
+  <a class="algo-card" href="how-guillotine.html">
+    <h3>Guillotine</h3>
+    <p>Iterative area-weighted edge-to-edge splits. Fast, clean, structured layouts with
+    relatively uniform rectangle sizes.</p>
+  </a>
+
+  <a class="algo-card" href="how-irregular.html">
+    <h3>Irregular</h3>
+    <p>Scan-line packing that fills the grid left-to-right, top-to-bottom. Produces interlocking,
+    non-guillotine layouts with varied shapes.</p>
+  </a>
+
+  <a class="algo-card" href="how-anchor.html">
+    <h3>Anchor-Grow</h3>
+    <p>Organic Voronoi-like growth from scattered seed points. Rectangles expand outward until
+    they collide, producing asymmetric, natural-looking layouts.</p>
+  </a>
+
+  <a class="algo-card" href="how-unique.html">
+    <span class="tag tag-advanced">Advanced</span>
+    <h3>Unique</h3>
+    <p>Constraint-based placement with a backtracking solver to verify unique solutions.
+    Smart clue positioning maximizes puzzle constraint.</p>
+  </a>
+</div>
+
+<hr>
+
+<h2>Seed Format</h2>
+
+<pre><code>{gridSize}_{6-digit-number}
+
+Examples:
+  5_003921    →  5×5 board, seed 003921
+  20_847291   → 20×20 board, seed 847291
+  40_100042   → 40×40 board, seed 100042</code></pre>
+
+<p>The grid size is encoded in the seed so that when sharing, the game automatically selects
+the correct board size.</p>
+
+<hr>
+
+<h2>Common Limitations</h2>
+
+<div class="note">
+<strong>No uniqueness guarantee (most generators):</strong> Only the Unique generator verifies
+that a puzzle has exactly one solution. The other four generators may produce puzzles with
+multiple valid partitions.
+</div>
+
+<div class="note">
+<strong>No difficulty tuning beyond size:</strong> Two boards of the same size can have very
+different difficulty. The generators don't analyze or control for this — difficulty comes
+primarily from grid size and rectangle distribution.
+</div>
+
+<hr>
+
+<p class="dim" style="text-align:center; margin-top:40px;">
+  <a href="index.html">&larr; Back to game</a>
+</p>
+
+</body>
+</html>

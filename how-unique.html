@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unique Generator — Shikaku</title>
+  <style>
+    body { background: #0e1420; color: #d8dce8; font-family: 'Inter','Segoe UI',system-ui,sans-serif; max-width: 720px; margin: 0 auto; padding: 40px 24px; line-height: 1.7; }
+    h1 { color: #fff; font-size: 1.8rem; margin-bottom: 4px; }
+    h2 { color: #5b8fd4; font-size: 1.2rem; margin-top: 32px; }
+    h3 { color: #80cc60; font-size: 1.05rem; margin-top: 20px; }
+    a { color: #5b8fd4; text-decoration: none; } a:hover { text-decoration: underline; }
+    hr { border: none; border-top: 1px solid #243044; margin: 28px 0; }
+    .dim { color: #6b7f9a; }
+    .subtitle { color: #6b7f9a; font-size: 0.95rem; margin-bottom: 0; }
+    code { background: #151d2b; border: 1px solid #243044; border-radius: 4px; padding: 1px 6px; font-size: 0.9em; color: #e8a060; }
+    pre { background: #151d2b; border: 1px solid #243044; border-radius: 8px; padding: 16px 20px; overflow-x: auto; font-size: 0.84rem; line-height: 1.5; color: #d8dce8; }
+    pre code { background: none; border: none; padding: 0; color: inherit; }
+    .green { color: #80cc60; } .highlight { color: #e8a060; }
+    .note { background: #151d2b; border-left: 3px solid #5b8fd4; padding: 12px 16px; margin: 16px 0; border-radius: 0 6px 6px 0; font-size: 0.9rem; color: #8a9db8; }
+    .boards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 20px 0; }
+    .board-example { text-align: center; }
+    .board-example canvas { border: 1px solid #243044; }
+    .board-info { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+    .board-seed { font-family: 'Consolas','SF Mono',monospace; font-size: 0.78rem; color: #6b7f9a; }
+    .board-stats { font-size: 0.78rem; color: #4a5b72; }
+    .diagram { background: #1a2840; border: 1px solid #243044; border-radius: 8px; padding: 16px 20px; font-family: monospace; font-size: 0.9rem; line-height: 1.4; white-space: pre; overflow-x: auto; color: #5b8fd4; margin: 16px 0; }
+  </style>
+</head>
+<body>
+
+<p><a href="how-generation-works.html">&larr; All generators</a></p>
+
+<h1>Unique Generator</h1>
+<p class="subtitle">Constraint-based placement with solution uniqueness verification.</p>
+
+<hr>
+
+<h2>Example Boards (10&times;10)</h2>
+<p class="dim" style="font-size:0.88rem;">Shown at 10&times;10 because uniqueness verification is most effective at smaller sizes.</p>
+<div class="boards" id="examples"></div>
+
+<hr>
+
+<h2>How It Works</h2>
+
+<p>The Unique generator is the only algorithm that attempts to produce puzzles with
+<strong>exactly one valid solution</strong>. It combines two techniques:</p>
+
+<ol>
+  <li><strong>Smart clue placement</strong> — choosing the most-constrained position for each number</li>
+  <li><strong>Backtracking solver</strong> — verifying the puzzle has a unique solution</li>
+</ol>
+
+<h3>Step 1: Generate a Base Tiling</h3>
+
+<p>Uses the <a href="how-irregular.html">Irregular</a> scan-line packer to create a tiling.
+This serves as the intended solution.</p>
+
+<h3>Step 2: Smart Number Placement</h3>
+
+<p>Instead of placing each clue number at a random cell within its rectangle, the algorithm
+picks the cell that <strong>minimizes the number of alternative rectangles</strong> that could
+contain it.</p>
+
+<div class="diagram"><span class="dim">Example: a 3×2 rectangle (area = 6)</span>
+
+For each cell, count how many distinct rectangles
+of area 6 could contain that cell:
+
+Cell (2,4): 8 alternatives
+Cell (2,5): 6 alternatives
+Cell (2,6): 4 alternatives
+Cell (3,4): 7 alternatives
+Cell (3,5): 5 alternatives
+Cell (3,6): 3 alternatives  <span class="highlight">← pick this one!</span>
+
+Corner cells near grid edges have the fewest
+alternatives → most constrained → better puzzles.</div>
+
+<h3>Step 3: Uniqueness Verification</h3>
+
+<p>For boards up to 20&times;20, a <strong>backtracking Shikaku solver</strong> counts solutions.
+The solver uses two optimizations:</p>
+
+<ul>
+  <li><strong>Most-constrained first</strong>: clues with fewer possible placements are processed
+  first, pruning the search tree early</li>
+  <li><strong>Forward checking</strong>: after placing each rectangle, verify that every remaining
+  clue still has at least one valid option</li>
+</ul>
+
+<p>If the puzzle has multiple solutions, the generator retries with a modified seed
+(up to 20 attempts for small boards).</p>
+
+<h3>Operation Limits</h3>
+
+<p>To keep generation fast, the solver uses operation limits (not time limits, so seeds
+always reproduce the same board):</p>
+
+<pre><code>  Board size    Op limit     Max attempts
+  ──────────    ────────     ────────────
+  5×5–7×7       100,000            20
+  8×8–10×10     300,000            20
+  11×11–15×15   800,000            20
+  16×16–20×20  2,000,000            8
+  21×21+       (skipped)             1</code></pre>
+
+<div class="note">
+<strong>Large boards:</strong> For boards larger than 20&times;20, uniqueness checking is
+skipped entirely (the search space is too large). Smart clue placement is still used,
+which produces significantly more constrained puzzles than random placement — just without
+a uniqueness guarantee.
+</div>
+
+<hr>
+
+<h2>Key Characteristics</h2>
+
+<ul>
+  <li><strong>Unique solutions</strong> (verified for boards &le; 20&times;20)</li>
+  <li><strong>Highly constrained clue positions</strong>: numbers placed at corners and edges</li>
+  <li><strong>Irregular tiling base</strong>: uses scan-line packing for the rectangle layout</li>
+  <li><strong>Slower generation</strong>: solver verification adds computation time</li>
+  <li><strong>Retry mechanism</strong>: multiple seed attempts to find unique puzzles</li>
+</ul>
+
+<hr>
+
+<h2>Pseudocode</h2>
+
+<pre><code><span class="green">function</span> generateUnique(size, seedString):
+    <span class="green">for</span> attempt in 0..maxAttempts:
+        rng   = mulberry32(hash(seedString + attempt))
+        rects = irregularTile(size, rng)
+
+        <span class="dim">// Smart placement: minimize alternatives</span>
+        <span class="green">for each</span> rect:
+            <span class="green">for each</span> cell (r, c) in rect:
+                count = countPossibleRects(r, c, rect.area, size)
+                <span class="green">if</span> count &lt; bestCount:
+                    bestCell = (r, c)
+            rect.numberPos = bestCell
+
+        <span class="dim">// Verify uniqueness (small boards only)</span>
+        <span class="green">if</span> size &lt;= 20:
+            solutions = countSolutions(size, clues, opLimit)
+            <span class="green">if</span> solutions == 1:
+                <span class="green">return</span> puzzle  <span class="dim">// found unique!</span>
+            <span class="green">continue</span>       <span class="dim">// try next seed</span>
+
+        <span class="green">return</span> puzzle    <span class="dim">// large boards: return with smart placement</span>
+
+<span class="green">function</span> countSolutions(size, clues, maxOps):
+    <span class="dim">// Enumerate placements, sort by constraint</span>
+    order = sortBy(clues, fewestOptionsFirst)
+
+    <span class="green">function</span> backtrack(depth):
+        <span class="green">if</span> solutions &gt;= 2 or ops &gt;= maxOps: <span class="green">return</span>
+        <span class="green">if</span> depth == clues.length: solutions++; <span class="green">return</span>
+
+        <span class="green">for each</span> placement of order[depth]:
+            <span class="green">if</span> overlaps: <span class="green">continue</span>
+            place on grid
+            <span class="green">if</span> allRemainingFeasible():
+                backtrack(depth + 1)
+            remove from grid</code></pre>
+
+<hr>
+
+<p class="dim" style="text-align:center; margin-top: 40px;">
+  <a href="how-generation-works.html">&larr; All generators</a> &nbsp;&middot;&nbsp;
+  <a href="index.html">Back to game</a>
+</p>
+
+<script src="generator.js"></script>
+<script src="board-preview.js"></script>
+<script>
+renderBoardSet('examples', 10, 'unique', ['10_000001', '10_000002', '10_000003']);
+</script>
+</body>
+</html>

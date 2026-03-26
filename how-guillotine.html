@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guillotine Generator — Shikaku</title>
+  <style>
+    body { background: #0e1420; color: #d8dce8; font-family: 'Inter','Segoe UI',system-ui,sans-serif; max-width: 720px; margin: 0 auto; padding: 40px 24px; line-height: 1.7; }
+    h1 { color: #fff; font-size: 1.8rem; margin-bottom: 4px; }
+    h2 { color: #5b8fd4; font-size: 1.2rem; margin-top: 32px; }
+    h3 { color: #80cc60; font-size: 1.05rem; margin-top: 20px; }
+    a { color: #5b8fd4; text-decoration: none; } a:hover { text-decoration: underline; }
+    hr { border: none; border-top: 1px solid #243044; margin: 28px 0; }
+    .dim { color: #6b7f9a; }
+    .subtitle { color: #6b7f9a; font-size: 0.95rem; margin-bottom: 0; }
+    code { background: #151d2b; border: 1px solid #243044; border-radius: 4px; padding: 1px 6px; font-size: 0.9em; color: #e8a060; }
+    pre { background: #151d2b; border: 1px solid #243044; border-radius: 8px; padding: 16px 20px; overflow-x: auto; font-size: 0.84rem; line-height: 1.5; color: #d8dce8; }
+    pre code { background: none; border: none; padding: 0; color: inherit; }
+    .green { color: #80cc60; } .highlight { color: #e8a060; }
+    .note { background: #151d2b; border-left: 3px solid #5b8fd4; padding: 12px 16px; margin: 16px 0; border-radius: 0 6px 6px 0; font-size: 0.9rem; color: #8a9db8; }
+    .boards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 20px 0; }
+    .board-example { text-align: center; }
+    .board-example canvas { border: 1px solid #243044; }
+    .board-info { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+    .board-seed { font-family: 'Consolas','SF Mono',monospace; font-size: 0.78rem; color: #6b7f9a; }
+    .board-stats { font-size: 0.78rem; color: #4a5b72; }
+    .diagram { background: #1a2840; border: 1px solid #243044; border-radius: 8px; padding: 16px 20px; font-family: monospace; font-size: 0.9rem; line-height: 1.4; white-space: pre; overflow-x: auto; color: #5b8fd4; margin: 16px 0; }
+  </style>
+</head>
+<body>
+
+<p><a href="how-generation-works.html">&larr; All generators</a></p>
+
+<h1>Guillotine Generator</h1>
+<p class="subtitle">Iterative area-weighted edge-to-edge splits.</p>
+
+<hr>
+
+<h2>Example Boards (15&times;15)</h2>
+<div class="boards" id="examples"></div>
+
+<hr>
+
+<h2>How It Works</h2>
+
+<p>The Guillotine generator uses an <strong>iterative splitting loop</strong>. It starts with the full
+grid and repeatedly picks the largest rectangle (area-weighted random selection) and cuts it
+in half with an edge-to-edge line.</p>
+
+<ol>
+  <li><strong>Start</strong> with one rectangle covering the entire N&times;N grid</li>
+  <li><strong>Find all splittable rectangles</strong> (area &gt; 1)</li>
+  <li><strong>Pick one</strong> using area-weighted random selection (larger = more likely)</li>
+  <li><strong>Choose direction</strong>: prefer the longer dimension (1.5&times; threshold), else random</li>
+  <li><strong>Choose cut position</strong>: uniform random along the chosen axis</li>
+  <li><strong>Replace</strong> the rectangle with its two halves</li>
+  <li>Repeat until the target clue count is reached: <code>round(N^1.4)</code></li>
+</ol>
+
+<h3>Example: First splits on a 10&times;10</h3>
+
+<div class="diagram"><span class="dim">Start:</span> 1 rectangle (100 cells)
+
+<span class="highlight">Split 1</span> — vertical cut at column 6:
+┌──────┬────┐
+│      │    │
+│  60  │ 40 │
+│      │    │
+└──────┴────┘
+
+<span class="highlight">Split 2</span> — 60-cell rect picked (largest):
+┌──────┬────┐
+│  24  │    │
+├──────┤ 40 │
+│  36  │    │
+└──────┴────┘
+
+<span class="highlight">Split 3</span> — 40-cell rect picked:
+┌──────┬────┐
+│  24  │ 28 │
+├──────┼────┤
+│  36  │ 12 │
+└──────┴────┘
+
+...continues until ~25 rectangles.</div>
+
+<h3>Why Area-Weighted Selection?</h3>
+
+<p>Area weighting ensures the largest rectangle is <strong>always the most likely to be split
+next</strong>. This naturally balances sizes — large rectangles keep getting subdivided while
+small ones are left alone. The result is a relatively <strong>uniform distribution</strong>: many
+medium-sized rectangles with few extremes.</p>
+
+<hr>
+
+<h2>Key Characteristics</h2>
+
+<ul>
+  <li><strong>Uniform-ish sizes</strong>: most rectangles cluster around the average area</li>
+  <li><strong>High rectangle count</strong>: <code>N^1.4</code> clues (e.g., ~152 for 40&times;40)</li>
+  <li><strong>Clean structure</strong>: every partition has edge-to-edge guillotine lines</li>
+  <li><strong>Fast</strong>: simple iterative loop, no recursion</li>
+  <li><strong>Deterministic count</strong>: always produces exactly the target number of rectangles</li>
+</ul>
+
+<div class="note">
+<strong>Comparison with Natural:</strong> The Guillotine generator produces many more, smaller,
+more uniformly-sized rectangles. The Natural generator produces fewer rectangles with a much
+wider range of sizes (heavy-tailed distribution). Both use guillotine cuts, but the iterative
+vs recursive approach creates very different visual feels.
+</div>
+
+<hr>
+
+<h2>Pseudocode</h2>
+
+<pre><code><span class="green">function</span> generateGuillotine(size, seedString):
+    rng    = mulberry32(hash(seedString))
+    target = round(size ^ 1.4)
+    rects  = [ fullGrid ]
+
+    <span class="green">while</span> rects.length &lt; target:
+        <span class="dim">// Area-weighted random pick</span>
+        chosen = weightedRandomPick(rects, weight = area)
+        remove chosen from rects
+
+        <span class="dim">// Direction preference</span>
+        <span class="green">if</span>   height &gt; width * 1.5:  splitH = true
+        elif width &gt; height * 1.5:  splitH = false
+        else:                        splitH = rng() &lt; 0.5
+
+        <span class="dim">// Random cut position</span>
+        cutPos = 1 + floor(rng() * (axisLen - 1))
+
+        add halfA, halfB to rects
+
+    <span class="green">return</span> finalize(rects)</code></pre>
+
+<hr>
+
+<p class="dim" style="text-align:center; margin-top: 40px;">
+  <a href="how-generation-works.html">&larr; All generators</a> &nbsp;&middot;&nbsp;
+  <a href="index.html">Back to game</a>
+</p>
+
+<script src="generator.js"></script>
+<script src="board-preview.js"></script>
+<script>
+renderBoardSet('examples', 15, 'guillotine', ['15_000001', '15_000002', '15_000003']);
+</script>
+</body>
+</html>

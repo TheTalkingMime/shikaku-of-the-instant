@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Natural Generator — Shikaku</title>
+  <style>
+    body { background: #0e1420; color: #d8dce8; font-family: 'Inter','Segoe UI',system-ui,sans-serif; max-width: 720px; margin: 0 auto; padding: 40px 24px; line-height: 1.7; }
+    h1 { color: #fff; font-size: 1.8rem; margin-bottom: 4px; }
+    h2 { color: #5b8fd4; font-size: 1.2rem; margin-top: 32px; }
+    h3 { color: #80cc60; font-size: 1.05rem; margin-top: 20px; }
+    a { color: #5b8fd4; text-decoration: none; } a:hover { text-decoration: underline; }
+    hr { border: none; border-top: 1px solid #243044; margin: 28px 0; }
+    .dim { color: #6b7f9a; }
+    .subtitle { color: #6b7f9a; font-size: 0.95rem; margin-bottom: 0; }
+    code { background: #151d2b; border: 1px solid #243044; border-radius: 4px; padding: 1px 6px; font-size: 0.9em; color: #e8a060; }
+    pre { background: #151d2b; border: 1px solid #243044; border-radius: 8px; padding: 16px 20px; overflow-x: auto; font-size: 0.84rem; line-height: 1.5; color: #d8dce8; }
+    pre code { background: none; border: none; padding: 0; color: inherit; }
+    .green { color: #80cc60; } .highlight { color: #e8a060; }
+    .note { background: #151d2b; border-left: 3px solid #5b8fd4; padding: 12px 16px; margin: 16px 0; border-radius: 0 6px 6px 0; font-size: 0.9rem; color: #8a9db8; }
+    .boards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 20px 0; }
+    .board-example { text-align: center; }
+    .board-example canvas { border: 1px solid #243044; }
+    .board-info { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+    .board-seed { font-family: 'Consolas','SF Mono',monospace; font-size: 0.78rem; color: #6b7f9a; }
+    .board-stats { font-size: 0.78rem; color: #4a5b72; }
+    .diagram { background: #1a2840; border: 1px solid #243044; border-radius: 8px; padding: 16px 20px; font-family: monospace; font-size: 0.9rem; line-height: 1.4; white-space: pre; overflow-x: auto; color: #5b8fd4; margin: 16px 0; }
+  </style>
+</head>
+<body>
+
+<p><a href="how-generation-works.html">&larr; All generators</a></p>
+
+<h1>Natural Generator</h1>
+<p class="subtitle">Recursive guillotine cuts with heavy-tailed size distribution. <strong>Default generator.</strong></p>
+
+<hr>
+
+<h2>Example Boards (15&times;15)</h2>
+<div class="boards" id="examples"></div>
+
+<hr>
+
+<h2>How It Works</h2>
+
+<p>The Natural generator uses <strong>recursive subdivision</strong> — starting with the full grid as
+one rectangle and recursively splitting it with edge-to-edge cuts. The key innovation is the
+<strong>sigmoid stopping probability</strong>: at each step, the algorithm independently decides
+whether to stop subdividing based on the current rectangle's area.</p>
+
+<ol>
+  <li><strong>Start</strong> with the full N&times;N grid as one rectangle</li>
+  <li><strong>At each rectangle</strong>, compute a stopping probability based on its area</li>
+  <li>If stopping: the rectangle becomes a clue piece</li>
+  <li>If continuing: choose a cut direction (biased toward the longer dimension) and a
+  random cut position, then recurse on both halves</li>
+</ol>
+
+<h3>The Sigmoid Stopping Rule</h3>
+
+<p>The probability of stopping at a given rectangle is:</p>
+
+<pre><code>P(stop) = 1 / (1 + (area / M) ^ k)
+
+where M = max(3, size * 0.55)    // characteristic midpoint area
+      k = 1.2                    // sigmoid steepness</code></pre>
+
+<p>This creates a smooth transition:</p>
+<ul>
+  <li>At <code>area >> M</code>: probability &asymp; 0 — large regions are almost always cut</li>
+  <li>At <code>area = M</code>: probability = 0.5 — coin-flip</li>
+  <li>At <code>area << M</code>: probability &asymp; 1 — small regions almost always survive</li>
+</ul>
+
+<p>For a 40&times;40 board (M &asymp; 22):</p>
+<pre><code>  Area    P(stop)    Interpretation
+  ────    ───────    ──────────────
+  1600     0.7%      Full board: almost always cut
+   200     8.3%      Still very likely to be cut
+    50    25%        Usually cut, sometimes survives
+    22    50%        Coin flip
+    10    72%        Usually survives
+     3    93%        Almost always survives
+     1    97%        Tiny — survives</code></pre>
+
+<h3>Why Independent Branches Matter</h3>
+
+<p>The critical difference from the iterative Guillotine generator is that <strong>each branch
+decides independently</strong> whether to stop. One branch might stop at depth 2 (producing a
+huge 120-area rectangle), while its sibling continues to depth 10 (producing many tiny
+rectangles). This independent stopping creates the <strong>heavy-tailed distribution</strong> —
+a mix of massive blocks and tiny fillers that characterizes professionally generated boards.</p>
+
+<div class="diagram"><span class="dim">Recursive tree showing independent stopping:</span>
+
+                    1600
+                   /    \
+               600       1000
+              <span class="highlight">STOP</span>       /    \
+            (area=600)  450    550
+                       /  \   <span class="highlight">STOP</span>
+                     180  270  (area=550)
+                     / \   <span class="highlight">STOP</span>
+                   80  100 (area=270)
+                  <span class="highlight">STOP</span> / \
+                      50  50
+                     ...  ...</div>
+
+<h3>Cut Direction &amp; Position</h3>
+
+<p>Cuts prefer the <strong>longer dimension</strong> (threshold: 1.5&times; ratio), otherwise random.
+Cut position is <strong>uniformly random</strong> — not center-biased. This naturally produces thin
+strips when cuts land near an edge, adding visual variety.</p>
+
+<hr>
+
+<h2>Key Characteristics</h2>
+
+<ul>
+  <li><strong>Heavy-tailed sizes</strong>: areas range from 1 to ~130 on a 40&times;40 board</li>
+  <li><strong>~80 rectangles</strong> for a 40&times;40 board (vs ~150 for the iterative Guillotine)</li>
+  <li><strong>Hierarchical structure</strong>: large regions subdivided into progressively smaller ones</li>
+  <li><strong>Guillotine property</strong>: every cut goes wall-to-wall within its parent rectangle</li>
+  <li><strong>Stochastic count</strong>: rect count varies by seed (typically &plusmn;15% of the mean)</li>
+</ul>
+
+<hr>
+
+<h2>Pseudocode</h2>
+
+<pre><code><span class="green">function</span> generateNatural(size, seedString):
+    rng = mulberry32(hash(seedString))
+    M   = max(3, size * 0.55)
+    k   = 1.2
+
+    <span class="green">function</span> subdivide(r, c, w, h):
+        area = w * h
+
+        <span class="dim">// Can't cut a 1-wide strip</span>
+        <span class="green">if</span> min(w, h) &lt;= 1:
+            emit {r, c, w, h}
+            <span class="green">return</span>
+
+        <span class="dim">// Sigmoid stopping probability</span>
+        stopP = 1 / (1 + (area / M) ^ k)
+        <span class="green">if</span> rng() &lt; stopP:
+            emit {r, c, w, h}
+            <span class="green">return</span>
+
+        <span class="dim">// Choose direction (prefer longer axis)</span>
+        <span class="green">if</span>   h &gt; w * 1.5: cutH = true
+        elif w &gt; h * 1.5: cutH = false
+        else:              cutH = rng() &lt; 0.5
+
+        <span class="dim">// Uniform random cut position</span>
+        <span class="green">if</span> cutH:
+            s = 1 + floor(rng() * (h - 1))
+            subdivide(r, c, w, s)
+            subdivide(r+s, c, w, h-s)
+        <span class="green">else</span>:
+            s = 1 + floor(rng() * (w - 1))
+            subdivide(r, c, s, h)
+            subdivide(r, c+s, w-s, h)
+
+    subdivide(0, 0, size, size)
+    <span class="green">return</span> finalize(rects)</code></pre>
+
+<hr>
+
+<div class="note">
+<strong>Guillotine constraint:</strong> Because every cut spans the full width or height of its
+parent rectangle, the resulting partition always has the guillotine-cut property. The Irregular
+and Anchor-Grow generators avoid this if you want non-guillotine layouts.
+</div>
+
+<hr>
+
+<p class="dim" style="text-align:center; margin-top: 40px;">
+  <a href="how-generation-works.html">&larr; All generators</a> &nbsp;&middot;&nbsp;
+  <a href="index.html">Back to game</a>
+</p>
+
+<script src="generator.js"></script>
+<script src="board-preview.js"></script>
+<script>
+renderBoardSet('examples', 15, 'natural', ['15_000001', '15_000002', '15_000003']);
+</script>
+</body>
+</html>

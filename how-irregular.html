@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Irregular Generator — Shikaku</title>
+  <style>
+    body { background: #0e1420; color: #d8dce8; font-family: 'Inter','Segoe UI',system-ui,sans-serif; max-width: 720px; margin: 0 auto; padding: 40px 24px; line-height: 1.7; }
+    h1 { color: #fff; font-size: 1.8rem; margin-bottom: 4px; }
+    h2 { color: #5b8fd4; font-size: 1.2rem; margin-top: 32px; }
+    h3 { color: #80cc60; font-size: 1.05rem; margin-top: 20px; }
+    a { color: #5b8fd4; text-decoration: none; } a:hover { text-decoration: underline; }
+    hr { border: none; border-top: 1px solid #243044; margin: 28px 0; }
+    .dim { color: #6b7f9a; }
+    .subtitle { color: #6b7f9a; font-size: 0.95rem; margin-bottom: 0; }
+    code { background: #151d2b; border: 1px solid #243044; border-radius: 4px; padding: 1px 6px; font-size: 0.9em; color: #e8a060; }
+    pre { background: #151d2b; border: 1px solid #243044; border-radius: 8px; padding: 16px 20px; overflow-x: auto; font-size: 0.84rem; line-height: 1.5; color: #d8dce8; }
+    pre code { background: none; border: none; padding: 0; color: inherit; }
+    .green { color: #80cc60; } .highlight { color: #e8a060; }
+    .note { background: #151d2b; border-left: 3px solid #5b8fd4; padding: 12px 16px; margin: 16px 0; border-radius: 0 6px 6px 0; font-size: 0.9rem; color: #8a9db8; }
+    .boards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 20px 0; }
+    .board-example { text-align: center; }
+    .board-example canvas { border: 1px solid #243044; }
+    .board-info { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+    .board-seed { font-family: 'Consolas','SF Mono',monospace; font-size: 0.78rem; color: #6b7f9a; }
+    .board-stats { font-size: 0.78rem; color: #4a5b72; }
+    .diagram { background: #1a2840; border: 1px solid #243044; border-radius: 8px; padding: 16px 20px; font-family: monospace; font-size: 0.9rem; line-height: 1.4; white-space: pre; overflow-x: auto; color: #5b8fd4; margin: 16px 0; }
+  </style>
+</head>
+<body>
+
+<p><a href="how-generation-works.html">&larr; All generators</a></p>
+
+<h1>Irregular Generator</h1>
+<p class="subtitle">Scan-line packing with interlocking, non-guillotine layouts.</p>
+
+<hr>
+
+<h2>Example Boards (15&times;15)</h2>
+<div class="boards" id="examples"></div>
+
+<hr>
+
+<h2>How It Works</h2>
+
+<p>Instead of splitting, the Irregular generator <strong>fills</strong> the grid by scanning
+left-to-right, top-to-bottom and placing rectangles one at a time into the remaining
+empty space.</p>
+
+<ol>
+  <li><strong>Scan</strong> for the next uncovered cell (reading order)</li>
+  <li><strong>Measure available space</strong>: for each possible width, find the maximum height
+  before hitting a covered cell</li>
+  <li><strong>Generate candidates</strong>: try (width, height) pairs near the target average area
+  (<code>N&sup2; / clueCount</code>), with a range of &plusmn;2 around the ideal height</li>
+  <li><strong>Weighted random pick</strong>: candidates closer to the average area are more likely,
+  using weight <code>1 / (1 + |area - avgArea|)</code></li>
+  <li><strong>Place</strong> the rectangle and mark cells as covered</li>
+  <li>Repeat until the entire grid is filled</li>
+</ol>
+
+<div class="diagram"><span class="dim">Scan-line packing — rectangles interlock:</span>
+
+┌───────┬─────┬──────┐
+│       │     │      │    Rectangles fit into gaps left
+│  3×4  │ 2×3 │      │    by previous placements.
+│       │     │ 5×2  │
+│       ├─────┤      │    No guillotine line exists
+├──┬────┤     │──────┤    that bisects the whole grid.
+│  │    │     │      │
+│  │    │     │      │
+└──┴────┴─────┴──────┘</div>
+
+<h3>Why Weighted Selection?</h3>
+
+<p>The weighting toward the average area prevents the algorithm from placing all tiny or all
+huge rectangles. The formula <code>1/(1+|area - avgArea|)</code> gives highest weight to exact
+average matches, with diminishing weight for outliers — but outliers can still be picked,
+creating a natural mix of sizes.</p>
+
+<hr>
+
+<h2>Key Characteristics</h2>
+
+<ul>
+  <li><strong>Interlocking layouts</strong>: no edge-to-edge guillotine lines through the whole grid</li>
+  <li><strong>Relatively uniform sizes</strong>: most rectangles cluster near the average area</li>
+  <li><strong>Scan-order bias</strong>: top-left rectangles have more placement freedom than bottom-right ones</li>
+  <li><strong>Guaranteed coverage</strong>: every cell is always filled (scan-line ensures no gaps)</li>
+</ul>
+
+<div class="note">
+<strong>Scan-order bias:</strong> Because the algorithm scans left-to-right, top-to-bottom,
+rectangles placed early (top-left) have more freedom in dimensions, while later placements
+(bottom-right) must fit into remaining gaps. This can produce slightly different visual
+"feels" between regions of the board.
+</div>
+
+<hr>
+
+<h2>Pseudocode</h2>
+
+<pre><code><span class="green">function</span> generateIrregular(size, seedString):
+    rng     = mulberry32(hash(seedString))
+    target  = round(size ^ 1.4)
+    avgArea = size * size / target
+    covered = size × size grid of <span class="highlight">false</span>
+    rects   = []
+
+    <span class="green">for each</span> cell (r, c) in reading order:
+        <span class="green">if</span> covered[r][c]: <span class="green">continue</span>
+
+        <span class="dim">// Measure available space</span>
+        maxW = consecutive uncovered cells to the right
+        <span class="green">for</span> w in 1..maxW:
+            maxH[w] = max rows of width w from (r,c)
+
+        <span class="dim">// Build candidates near avgArea</span>
+        candidates = []
+        <span class="green">for</span> w in 1..maxW:
+            idealH = clamp(round(avgArea / w), 1, maxH[w])
+            <span class="green">for</span> h in (idealH-2)..(idealH+2):
+                candidates.add(w, h)
+
+        <span class="dim">// Weighted pick (prefer candidates near avgArea)</span>
+        pick = weightedRandom(candidates,
+                              weight = 1 / (1 + |area - avgArea|))
+
+        rects.add(pick)
+        mark cells as covered
+
+    <span class="green">return</span> finalize(rects)</code></pre>
+
+<hr>
+
+<p class="dim" style="text-align:center; margin-top: 40px;">
+  <a href="how-generation-works.html">&larr; All generators</a> &nbsp;&middot;&nbsp;
+  <a href="index.html">Back to game</a>
+</p>
+
+<script src="generator.js"></script>
+<script src="board-preview.js"></script>
+<script>
+renderBoardSet('examples', 15, 'irregular', ['15_000001', '15_000002', '15_000003']);
+</script>
+</body>
+</html>

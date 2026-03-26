@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anchor-Grow Generator — Shikaku</title>
+  <style>
+    body { background: #0e1420; color: #d8dce8; font-family: 'Inter','Segoe UI',system-ui,sans-serif; max-width: 720px; margin: 0 auto; padding: 40px 24px; line-height: 1.7; }
+    h1 { color: #fff; font-size: 1.8rem; margin-bottom: 4px; }
+    h2 { color: #5b8fd4; font-size: 1.2rem; margin-top: 32px; }
+    h3 { color: #80cc60; font-size: 1.05rem; margin-top: 20px; }
+    a { color: #5b8fd4; text-decoration: none; } a:hover { text-decoration: underline; }
+    hr { border: none; border-top: 1px solid #243044; margin: 28px 0; }
+    .dim { color: #6b7f9a; }
+    .subtitle { color: #6b7f9a; font-size: 0.95rem; margin-bottom: 0; }
+    code { background: #151d2b; border: 1px solid #243044; border-radius: 4px; padding: 1px 6px; font-size: 0.9em; color: #e8a060; }
+    pre { background: #151d2b; border: 1px solid #243044; border-radius: 8px; padding: 16px 20px; overflow-x: auto; font-size: 0.84rem; line-height: 1.5; color: #d8dce8; }
+    pre code { background: none; border: none; padding: 0; color: inherit; }
+    .green { color: #80cc60; } .highlight { color: #e8a060; }
+    .note { background: #151d2b; border-left: 3px solid #5b8fd4; padding: 12px 16px; margin: 16px 0; border-radius: 0 6px 6px 0; font-size: 0.9rem; color: #8a9db8; }
+    .boards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 20px 0; }
+    .board-example { text-align: center; }
+    .board-example canvas { border: 1px solid #243044; }
+    .board-info { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+    .board-seed { font-family: 'Consolas','SF Mono',monospace; font-size: 0.78rem; color: #6b7f9a; }
+    .board-stats { font-size: 0.78rem; color: #4a5b72; }
+    .diagram { background: #1a2840; border: 1px solid #243044; border-radius: 8px; padding: 16px 20px; font-family: monospace; font-size: 0.9rem; line-height: 1.4; white-space: pre; overflow-x: auto; color: #5b8fd4; margin: 16px 0; }
+  </style>
+</head>
+<body>
+
+<p><a href="how-generation-works.html">&larr; All generators</a></p>
+
+<h1>Anchor-Grow Generator</h1>
+<p class="subtitle">Organic Voronoi-like growth from scattered seed points.</p>
+
+<hr>
+
+<h2>Example Boards (15&times;15)</h2>
+<div class="boards" id="examples"></div>
+
+<hr>
+
+<h2>How It Works</h2>
+
+<p>The Anchor-Grow algorithm creates layouts by scattering seed points across the grid, then
+growing each one outward into a rectangle until collisions stop further growth.</p>
+
+<h3>Phase 1: Seed Placement</h3>
+
+<p>Seeds are placed on a <strong>jittered grid</strong> — a regular grid where each point is offset
+by a random amount within its cell. This ensures roughly even spacing while avoiding
+a mechanical lattice pattern.</p>
+
+<div class="diagram"><span class="dim">Jittered grid placement (9 seeds on a 10×10):</span>
+
+┌──────────────────┐
+│ ·        ·     · │    Each · is a 1×1 seed rect
+│                  │    placed with random jitter
+│    ·       ·     │    within its grid cell.
+│                  │
+│ ·     ·          │
+│              ·   │
+└──────────────────┘</div>
+
+<h3>Phase 2: Growth</h3>
+
+<p>In repeated rounds, every rectangle tries to expand one cell in a random direction.
+Growth succeeds only if <strong>every cell in the new row/column is unowned</strong>. The order
+is <strong>shuffled each round</strong> so no rectangle gets a persistent advantage.</p>
+
+<div class="diagram"><span class="highlight">Round 1:</span> Each seed tries to grow in a random direction.
+<span class="highlight">Round 2:</span> Rectangles grow further, some start colliding.
+<span class="highlight">Round N:</span> Growth stalls — all rects are blocked on all sides.
+
+┌───────┬────┬─────┐
+│       │    │     │    Shapes are asymmetric —
+│   A   │ B  │  C  │    each seed grew differently
+├──┬────┼────┤     │    depending on what it
+│  │    │    ├─────┤    collided with.
+│D │ E  │ F  │     │
+│  │    │    │  G  │
+├──┴────┴──┬─┤     │
+│    H     │I│     │
+└──────────┴─┴─────┘</div>
+
+<h3>Phase 3: Gap Fill</h3>
+
+<p>After growth stalls, any remaining uncovered cells are filled with scan-line packing
+(the same algorithm used by the Irregular generator), placing rectangles sized near the
+target average area.</p>
+
+<h3>Why Shuffle Growth Order?</h3>
+
+<p>If rectangles always grew in the same order, early seeds would dominate and claim most of
+the space. Shuffling each round ensures <strong>fair competition</strong> for territory, producing
+more varied, balanced layouts.</p>
+
+<hr>
+
+<h2>Key Characteristics</h2>
+
+<ul>
+  <li><strong>Organic, asymmetric shapes</strong>: no two boards look alike</li>
+  <li><strong>Non-guillotine layouts</strong>: rectangle boundaries don't form straight lines across the grid</li>
+  <li><strong>Moderate size variance</strong>: seeds near the center grow large, edge/corner seeds stay small</li>
+  <li><strong>Three-phase process</strong>: seed, grow, fill — more complex than other generators</li>
+</ul>
+
+<div class="note">
+<strong>Gap-fill artifacts:</strong> The scan-line gap filler can sometimes produce small,
+uniform rectangles in areas that multiple grown rectangles couldn't reach. This is most
+visible on larger boards where growth collisions leave irregular gaps.
+</div>
+
+<hr>
+
+<h2>Pseudocode</h2>
+
+<pre><code><span class="green">function</span> generateAnchorGrow(size, seedString):
+    rng    = mulberry32(hash(seedString))
+    target = round(size ^ 1.4)
+
+    <span class="dim">// Phase 1: Scatter seeds on jittered grid</span>
+    gridDim = ceil(sqrt(target))
+    <span class="green">for</span> i in 0..target:
+        gr = floor(i / gridDim)
+        gc = i mod gridDim
+        r  = clamp(floor(gr * cellH + rng() * cellH))
+        c  = clamp(floor(gc * cellW + rng() * cellW))
+        place 1×1 rect at (r, c)
+
+    <span class="dim">// Phase 2: Grow until no rect can expand</span>
+    <span class="green">repeat</span>:
+        grew = false
+        shuffle(rect order)
+        <span class="green">for each</span> rect:
+            dirs = shuffle([up, down, left, right])
+            <span class="green">for each</span> dir:
+                <span class="green">if</span> canGrow(rect, dir):
+                    expand(rect, dir)
+                    grew = true
+                    <span class="green">break</span>
+    <span class="green">until</span> !grew
+
+    <span class="dim">// Phase 3: Fill gaps with scan-line packing</span>
+    <span class="green">for each</span> uncovered cell (r, c):
+        place best-fit rectangle near avgArea
+
+    <span class="green">return</span> finalize(rects)</code></pre>
+
+<hr>
+
+<p class="dim" style="text-align:center; margin-top: 40px;">
+  <a href="how-generation-works.html">&larr; All generators</a> &nbsp;&middot;&nbsp;
+  <a href="index.html">Back to game</a>
+</p>
+
+<script src="generator.js"></script>
+<script src="board-preview.js"></script>
+<script>
+renderBoardSet('examples', 15, 'anchor', ['15_000001', '15_000002', '15_000003']);
+</script>
+</body>
+</html>
