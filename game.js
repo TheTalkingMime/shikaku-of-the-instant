@@ -90,6 +90,20 @@ const PALETTES = {
       { fill: 'rgba(245,180,80,0.72)', stroke: '#ffbb55' },
     ],
   },
+  happy: {
+    name: 'Happy Rectangles',
+    faces: true,
+    colors: [
+      { fill: 'rgba(255,210,70,0.82)',  stroke: '#ffd246' },
+      { fill: 'rgba(110,215,130,0.82)', stroke: '#6ed782' },
+      { fill: 'rgba(130,190,255,0.82)', stroke: '#82beff' },
+      { fill: 'rgba(255,150,170,0.82)', stroke: '#ff96aa' },
+      { fill: 'rgba(200,165,255,0.82)', stroke: '#c8a5ff' },
+      { fill: 'rgba(255,175,90,0.82)',  stroke: '#ffaf5a' },
+      { fill: 'rgba(140,230,210,0.82)', stroke: '#8ce6d2' },
+      { fill: 'rgba(255,215,150,0.82)', stroke: '#ffd796' },
+    ],
+  },
 };
 
 const SIZE_LABELS = {
@@ -123,6 +137,9 @@ let _colorIdx = 0;
 let activePalette = 'classic';
 let activeGenerator = 'natural';
 let canvas, ctx;
+
+// ─── View mode: 'home' | 'freeplay' | 'race' ────────────────────────────────
+let viewMode = 'home';
 
 // ─── Stats / Personal Bests ──────────────────────────────────────────────────
 function loadStats() {
@@ -161,6 +178,100 @@ function getBest(size) {
 
 // ─── DOM refs ────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
+
+// ─── Instant Race Seed ───────────────────────────────────────────────────────
+// Each page load captures the current Unix timestamp as the race seed.
+// "Of the Instant" — every moment is a unique race.
+let instantSeed = null;
+
+function getInstantRaceSeed() {
+  if (!instantSeed) {
+    instantSeed = 'T' + Math.floor(Date.now() / 1000);
+  }
+  return instantSeed;
+}
+
+function refreshInstantSeed() {
+  instantSeed = 'T' + Math.floor(Date.now() / 1000);
+  return instantSeed;
+}
+
+// ─── Home Screen ─────────────────────────────────────────────────────────────
+function showHomeScreen() {
+  viewMode = 'home';
+  $('homeScreen').classList.remove('hidden');
+  $('gameView').classList.add('hidden');
+  $('gameView').classList.remove('race-active');
+  if (raceBanner) raceBanner.style.display = 'none';
+  stopTimer();
+  stopAnim();
+  window.history.replaceState(null, '', window.location.pathname);
+  refreshHomeScreen();
+}
+
+function refreshHomeScreen() {
+  // Generate a fresh instant seed each time we show the home screen
+  refreshInstantSeed();
+
+  // Show current time
+  const now = new Date();
+  $('homeDailyDate').textContent = now.toLocaleTimeString(undefined, {
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+
+  // Seed
+  $('homeDailySeed').textContent = 'Seed: ' + getInstantRaceSeed();
+
+  // Always fresh — no "already completed" state
+  $('homeDailyResult').textContent = '';
+  $('startDailyBtn').textContent = 'Start Race';
+
+  // Recent races
+  renderRecentRaces();
+}
+
+function renderRecentRaces() {
+  const hist = loadRaceHistory();
+  const container = $('homeRecentRaces');
+  if (hist.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const recent = hist.slice(0, 5);
+  let html = '<div class="home-recent-title">Recent Races</div><div class="home-recent-list">';
+  for (const race of recent) {
+    const date = new Date(race.date);
+    const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    html += `<div class="home-recent-row" data-seed="${race.raceSeed}">`;
+    html += `<span class="home-recent-seed">${race.raceSeed}</span>`;
+    html += `<span class="home-recent-time">${formatTime(race.totalMs)}</span>`;
+    html += `<span class="home-recent-date">${dateStr}</span>`;
+    html += `</div>`;
+  }
+  html += '</div>';
+  container.innerHTML = html;
+
+  // Click recent race to replay that seed
+  container.querySelectorAll('.home-recent-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const seed = row.dataset.seed;
+      startRaceFromHome(seed);
+    });
+  });
+}
+
+function showGameView(mode) {
+  viewMode = mode;
+  $('homeScreen').classList.add('hidden');
+  $('gameView').classList.remove('hidden');
+
+  if (mode === 'race') {
+    $('gameView').classList.add('race-active');
+  } else {
+    $('gameView').classList.remove('race-active');
+  }
+}
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
@@ -283,7 +394,17 @@ window.addEventListener('DOMContentLoaded', () => {
   // Cover screen start button
   $('startGameBtn').addEventListener('click', startFromCover);
 
-  // Race mode
+  // Home button in sidebar
+  $('homeBtn').addEventListener('click', () => {
+    closeMobileMenu();
+    if (raceActive) {
+      if (!confirm('Abandon current race and return home?')) return;
+      abandonRace();
+    }
+    showHomeScreen();
+  });
+
+  // Race mode from sidebar (opens lobby modal for custom race)
   $('raceBtn').addEventListener('click', () => { closeMobileMenu(); openRaceLobby(); });
   $('startRaceBtn').addEventListener('click', startRace);
   $('cancelRaceBtn').addEventListener('click', () => $('raceLobbyModal').classList.add('hidden'));
@@ -296,6 +417,33 @@ window.addEventListener('DOMContentLoaded', () => {
     navigator.clipboard.writeText(raceSeed).catch(() => {});
   });
   $('closeRaceResultsBtn').addEventListener('click', () => $('raceResultsModal').classList.add('hidden'));
+  $('raceHomeBtn').addEventListener('click', () => {
+    $('raceResultsModal').classList.add('hidden');
+    showHomeScreen();
+  });
+
+  // --- Home screen buttons ---
+  $('startDailyBtn').addEventListener('click', () => {
+    startRaceFromHome(getInstantRaceSeed());
+  });
+  $('startCustomBtn').addEventListener('click', () => {
+    const seed = $('homeCustomSeed').value.trim();
+    startRaceFromHome(seed || undefined);
+  });
+  $('homeCustomSeed').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const seed = $('homeCustomSeed').value.trim();
+      startRaceFromHome(seed || undefined);
+    }
+  });
+  $('freePlayBtn').addEventListener('click', () => {
+    showGameView('freeplay');
+    prepareNewGame();
+  });
+  $('homeHistoryBtn').addEventListener('click', openRaceHistory);
+  $('homeStatsBtn').addEventListener('click', openStats);
+  $('homeSettingsBtn').addEventListener('click', openSettings);
+  $('homeHelpBtn').addEventListener('click', () => $('howToModal').classList.remove('hidden'));
 
   // --- Mouse events ---
   canvas.addEventListener('mousedown', onMouseDown);
@@ -352,11 +500,49 @@ window.addEventListener('DOMContentLoaded', () => {
     for (const opt of sel.options) {
       if (parseInt(opt.value, 10) === sizeVal) { sel.value = opt.value; break; }
     }
+    // Go directly to free play with this seed
+    showGameView('freeplay');
     prepareNewGame(hashSeed);
   } else {
-    prepareNewGame();
+    // Show home screen by default
+    showHomeScreen();
   }
 });
+
+// ─── Start race from home screen ─────────────────────────────────────────────
+function startRaceFromHome(seed) {
+  raceSeed      = seed || makeRaceSeed();
+  raceStage     = -1; // no board loaded yet
+  raceTimes     = [];
+  raceSnapshots = [];
+  raceReviewing = false;
+  raceReviewIdx = -1;
+  raceActive    = true;
+
+  // Pre-generate all 5 boards
+  initRaceBoards();
+
+  showGameView('race');
+
+  // Disable sidebar controls
+  $('sizeSelect').disabled = true;
+  $('loadSeedBtn').disabled = true;
+  $('seedInput').disabled = true;
+  $('raceBtn').disabled = true;
+
+  // Create race banner
+  if (!raceBanner) {
+    raceBanner = document.createElement('div');
+    raceBanner.className = 'race-banner';
+    raceBanner.id = 'raceBanner';
+    const main = $('mainArea');
+    main.insertBefore(raceBanner, main.firstChild);
+  }
+  raceBanner.style.display = '';
+
+  // Load first board
+  loadBoard(0);
+}
 
 // ─── Seed loading ────────────────────────────────────────────────────────────
 function loadSeed() {
@@ -416,8 +602,10 @@ function prepareNewGame(seedStr) {
   // Record that a game was started
   recordPlay(size);
 
-  // Update URL hash for sharing
-  window.history.replaceState(null, '', '#seed=' + currentSeed);
+  // Update URL hash for sharing (only in free play)
+  if (viewMode === 'freeplay') {
+    window.history.replaceState(null, '', '#seed=' + currentSeed);
+  }
 
   // Show cover screen over the grid
   const label = SIZE_LABELS[size] || '';
@@ -433,6 +621,11 @@ function startFromCover() {
   const cover = $('coverScreen');
   cover.classList.add('hidden');
   setTimeout(() => cover.style.display = 'none', 350);
+
+  if (raceActive && raceBoards[raceStage]) {
+    raceBoards[raceStage].started = true;
+  }
+
   startTimer();
 }
 
@@ -542,8 +735,7 @@ function openSettings() {
       localStorage.setItem('shikaku_palette', key);
       list.querySelectorAll('.palette-option').forEach(o => o.classList.remove('active'));
       opt.classList.add('active');
-      recolorRects();
-      drawAll();
+      if (puzzle) { recolorRects(); drawAll(); }
     });
     list.appendChild(opt);
   }
@@ -568,7 +760,7 @@ function openSettings() {
       localStorage.setItem('shikaku_generator', key);
       genList.querySelectorAll('.palette-option').forEach(o => o.classList.remove('active'));
       opt.classList.add('active');
-      prepareNewGame();
+      if (viewMode === 'freeplay') prepareNewGame();
     });
     genList.appendChild(opt);
   }
@@ -616,11 +808,8 @@ function resizeCanvas() {
 }
 
 function fitToScreen() {
-  // Measure from the stable main-area element, not the grid container
-  // which can be inflated by the current canvas size.
   const main = $('mainArea');
-  const pad = 48; // breathing room on each axis
-  // Account for race/review banner height if visible
+  const pad = 48;
   const bannerH = raceBanner && raceBanner.style.display !== 'none' ? raceBanner.offsetHeight : 0;
   const availW = main.clientWidth - pad;
   const availH = main.clientHeight - pad - bannerH;
@@ -654,23 +843,18 @@ function exitFocus() {
 
 // ─── Drawing ─────────────────────────────────────────────────────────────────
 
-// Shared grid renderer used by the main canvas, replay, and share-as-image.
-// cx: canvas context, s: grid size, px: cell pixel size, ox/oy: origin offset,
-// rects: array of placed rects, clues: puzzle clues, opts: { dash, rectLw, shadow }
 function drawGrid(cx, s, px, ox, oy, rects, clues, opts) {
   const W = px * s;
   const dash = opts.dash || [3, 5];
   const rectLw = opts.rectLw || 2;
   const shadow = opts.shadow !== false;
 
-  // Checkerboard cells
   for (let r = 0; r < s; r++)
     for (let c = 0; c < s; c++) {
       cx.fillStyle = (r + c) % 2 === 0 ? COLOR.cellA : COLOR.cellB;
       cx.fillRect(ox + c * px, oy + r * px, px, px);
     }
 
-  // Dotted grid lines
   cx.strokeStyle = COLOR.gridDot;
   cx.lineWidth = opts.gridLw || 1.5;
   cx.setLineDash(dash);
@@ -684,7 +868,6 @@ function drawGrid(cx, s, px, ox, oy, rects, clues, opts) {
   cx.setLineDash([]);
   cx.lineDashOffset = 0;
 
-  // Rectangles
   for (const rect of rects) {
     const m = opts.rectMargin || 2;
     cx.beginPath();
@@ -696,7 +879,6 @@ function drawGrid(cx, s, px, ox, oy, rects, clues, opts) {
     cx.stroke();
   }
 
-  // Clue numbers
   const fontSize = Math.max(7, Math.round(px * 0.38));
   cx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
   cx.textAlign = 'center';
@@ -714,6 +896,51 @@ function drawGrid(cx, s, px, ox, oy, rects, clues, opts) {
   }
 }
 
+// ─── Happy Rectangles face drawing ───────────────────────────────────────────
+function drawFaces(cx, rects, px) {
+  for (const rect of rects) {
+    const w = rect.w * px;
+    const h = rect.h * px;
+    const minDim = Math.min(w, h);
+
+    // Skip faces on tiny rects
+    if (minDim < 22) continue;
+
+    const centerX = rect.c * px + w / 2;
+    const centerY = rect.r * px + h / 2;
+    const faceR = minDim * 0.32;
+    const isValid = getRectState(rect) === 'ok';
+
+    // Eyes
+    const eyeR = Math.max(1.5, faceR * 0.12);
+    const eyeOffsetY = faceR * 0.18;
+    const eyeSpacing = faceR * 0.32;
+
+    cx.fillStyle = 'rgba(0,0,0,0.55)';
+    cx.beginPath();
+    cx.arc(centerX - eyeSpacing, centerY - eyeOffsetY, eyeR, 0, Math.PI * 2);
+    cx.fill();
+    cx.beginPath();
+    cx.arc(centerX + eyeSpacing, centerY - eyeOffsetY, eyeR, 0, Math.PI * 2);
+    cx.fill();
+
+    // Mouth
+    const mouthR = faceR * 0.25;
+    cx.strokeStyle = 'rgba(0,0,0,0.55)';
+    cx.lineWidth = Math.max(1.5, faceR * 0.07);
+    cx.lineCap = 'round';
+    cx.beginPath();
+    if (isValid) {
+      // Smile :)
+      cx.arc(centerX, centerY + faceR * 0.08, mouthR, 0.15 * Math.PI, 0.85 * Math.PI);
+    } else {
+      // Frown :(
+      cx.arc(centerX, centerY + faceR * 0.42, mouthR, 1.15 * Math.PI, 1.85 * Math.PI);
+    }
+    cx.stroke();
+  }
+}
+
 function drawAll() {
   const s  = puzzle.size;
   const px = cellPx;
@@ -721,9 +948,6 @@ function drawAll() {
 
   ctx.clearRect(0, 0, W, W);
 
-  // Draw base grid (cells, grid lines, clue numbers) without rects —
-  // we need custom per-rect alpha for invalid pulse
-  // Checkerboard + grid lines
   for (let r = 0; r < s; r++)
     for (let c = 0; c < s; c++) {
       ctx.fillStyle = (r + c) % 2 === 0 ? COLOR.cellA : COLOR.cellB;
@@ -742,7 +966,6 @@ function drawAll() {
   ctx.setLineDash([]);
   ctx.lineDashOffset = 0;
 
-  // Committed rectangles (with pulse for invalid)
   const pulse = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(performance.now() / 260));
   for (const rect of userRects) {
     const invalid = getRectState(rect) !== 'ok';
@@ -758,7 +981,11 @@ function drawAll() {
     if (invalid) ctx.globalAlpha = 1;
   }
 
-  // Drag preview outline
+  // Happy Rectangles faces
+  if (PALETTES[activePalette].faces) {
+    drawFaces(ctx, userRects, px);
+  }
+
   if (dragging && dragStart && dragEnd) {
     const dr = dragRect();
     const m = 2;
@@ -771,7 +998,6 @@ function drawAll() {
     ctx.stroke();
   }
 
-  // Clue numbers
   const fontSize = Math.max(9, Math.round(px * 0.38));
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
@@ -786,7 +1012,6 @@ function drawAll() {
     ctx.fillText(label, cx, cy);
   }
 
-  // Dimension label pill (on top of everything)
   if (dragging && dragStart && dragEnd) {
     const dr = dragRect();
     const label = `${dr.w}×${dr.h}`;
@@ -911,7 +1136,6 @@ function commitDrag() {
   if (!dragStart || !dragEnd) return;
   const rect = dragRect();
 
-  // Remove overlapping rects
   const toRemove = [];
   for (let i = 0; i < userRects.length; i++)
     if (rectsOverlap(userRects[i], rect)) toRemove.push(i);
@@ -1015,6 +1239,11 @@ function startTimer() {
     const t = formatTime(timerMs);
     timerEl.textContent = t;
     focusTimerEl.textContent = t;
+    // Update race banner timer if active
+    if (raceActive && raceBanner) {
+      const raceTimerEl = raceBanner.querySelector('.race-timer');
+      if (raceTimerEl) raceTimerEl.textContent = t;
+    }
     timerRAF = requestAnimationFrame(tick);
   }
   timerRAF = requestAnimationFrame(tick);
@@ -1048,7 +1277,6 @@ function renderReplay() {
 
   const rctx = replayCanvas.getContext('2d');
 
-  // Deduplicate consecutive identical frames
   const frames = [replayLog[0]];
   for (let i = 1; i < replayLog.length; i++) {
     if (JSON.stringify(replayLog[i]) !== JSON.stringify(replayLog[i - 1]))
@@ -1080,7 +1308,6 @@ function renderReplay() {
   }
   animate();
 
-  // Stop loop when modal closes
   const observer = new MutationObserver(() => {
     if ($('winModal').classList.contains('hidden')) {
       clearTimeout(replayTimer);
@@ -1097,6 +1324,7 @@ function shareAsImage() {
   const footer = 30;
   const imgCell = Math.max(20, Math.min(40, Math.floor(600 / puzzle.size)));
   const gridPx = imgCell * puzzle.size;
+
   const totalW = gridPx + pad * 2;
   const totalH = gridPx + pad * 2 + header + footer;
 
@@ -1105,27 +1333,23 @@ function shareAsImage() {
   c.height = totalH;
   const cx = c.getContext('2d');
 
-  // Background
   cx.fillStyle = '#0e1420';
   cx.fillRect(0, 0, totalW, totalH);
 
-  // Header
   cx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
   cx.fillStyle = '#e2e6f0';
   cx.textAlign = 'left';
   cx.textBaseline = 'middle';
-  cx.fillText('Shikaku', pad, pad + header / 2);
+  cx.fillText('Shikaku of the Instant', pad, pad + header / 2);
   cx.font = '13px "Segoe UI", Arial, sans-serif';
   cx.fillStyle = '#6b7f9a';
   cx.textAlign = 'right';
   cx.fillText(formatTime(timerMs), totalW - pad, pad + header / 2);
 
-  // Grid
   const ox = pad, oy = pad + header;
   drawGrid(cx, puzzle.size, imgCell, ox, oy, userRects, puzzle.clues,
     { dash: [2, 4], gridLw: 1, rectLw: 2, rectMargin: 1.5, shadow: true });
 
-  // Footer
   cx.font = '11px "Segoe UI", Arial, sans-serif';
   cx.fillStyle = '#4a5b72';
   cx.textAlign = 'left';
@@ -1133,13 +1357,11 @@ function shareAsImage() {
   const label = SIZE_LABELS[size] || '';
   cx.fillText(`${size}×${size}${label ? ' ' + label : ''}  ·  Seed: ${currentSeed}`, pad, oy + gridPx + footer / 2 + 4);
 
-  // Copy to clipboard
   c.toBlob(blob => {
     navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(() => {
       $('shareImageBtn').textContent = 'Copied!';
       setTimeout(() => $('shareImageBtn').textContent = 'Copy Image', 1500);
     }).catch(() => {
-      // Fallback: download if clipboard fails
       const link = document.createElement('a');
       link.download = `shikaku_${currentSeed}.png`;
       link.href = c.toDataURL('image/png');
@@ -1158,14 +1380,15 @@ const RACE_STAGES = [
 ];
 
 let raceActive    = false;
-let raceStage     = 0;
+let raceStage     = -1;    // index of currently displayed board
 let raceSeed      = '';
-let raceTimes     = [];   // ms per stage
+let raceTimes     = [];
 let raceBanner    = null;
-let raceSnapshots = [];   // { puzzle, userRects, size } per completed stage
+let raceSnapshots = [];
+let raceBoards    = [];    // per-stage state for non-linear play
 let raceReviewing   = false;
 let raceReviewIdx   = -1;
-let raceReviewSource = 'results'; // 'results' or 'history'
+let raceReviewSource = 'results';
 
 function makeRaceSeed() {
   return 'R' + String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
@@ -1173,7 +1396,6 @@ function makeRaceSeed() {
 
 function stageSeed(raceSeed, stageIdx) {
   const stage = RACE_STAGES[stageIdx];
-  // Derive a per-stage seed: "{size}_{raceSeed hash for this stage}"
   const hash = Math.abs(hashString(raceSeed + '_stage' + stageIdx));
   return stage.size + '_' + String(hash % 1000000).padStart(6, '0');
 }
@@ -1185,79 +1407,214 @@ function openRaceLobby() {
 
 function startRace() {
   const inputSeed = $('raceSeedInput').value.trim();
-  raceSeed      = inputSeed || makeRaceSeed();
-  raceStage     = 0;
-  raceTimes     = [];
+  $('raceLobbyModal').classList.add('hidden');
+  startRaceFromHome(inputSeed || undefined);
+}
+
+function abandonRace() {
+  raceActive = false;
+  raceStage = -1;
+  raceTimes = [];
   raceSnapshots = [];
+  raceBoards = [];
   raceReviewing = false;
   raceReviewIdx = -1;
-  raceActive    = true;
 
-  $('raceLobbyModal').classList.add('hidden');
+  stopTimer();
+  stopAnim();
 
-  // Hide normal toolbar controls that shouldn't be used during race
-  $('sizeSelect').disabled = true;
-  $('loadSeedBtn').disabled = true;
-  $('seedInput').disabled = true;
-  $('raceBtn').disabled = true;
+  $('sizeSelect').disabled = false;
+  $('loadSeedBtn').disabled = false;
+  $('seedInput').disabled = false;
+  $('raceBtn').disabled = false;
 
-  // Create race banner
-  if (!raceBanner) {
-    raceBanner = document.createElement('div');
-    raceBanner.className = 'race-banner';
-    raceBanner.id = 'raceBanner';
-    // Insert at top of main area
-    const main = $('mainArea');
-    main.insertBefore(raceBanner, main.firstChild);
+  if (raceBanner) raceBanner.style.display = 'none';
+  $('gameView').classList.remove('race-active');
+}
+
+// ─── Non-linear race board management ────────────────────────────────────────
+function initRaceBoards() {
+  raceBoards = [];
+  for (let i = 0; i < RACE_STAGES.length; i++) {
+    const stage = RACE_STAGES[i];
+    const seed = stageSeed(raceSeed, i);
+    const p = generatePuzzle(stage.size, seed, activeGenerator);
+
+    // Auto-place 1x1 clues
+    const rects = [];
+    let ci = 0;
+    const colors = getActiveColors();
+    for (const clue of p.clues) {
+      if (clue.area === 1) {
+        const rect = { r: clue.r, c: clue.c, w: 1, h: 1 };
+        Object.assign(rect, colors[ci++ % colors.length]);
+        rects.push(rect);
+      }
+    }
+
+    raceBoards.push({
+      puzzle: p,
+      userRects: rects,
+      history: [],
+      replayLog: [rects.map(r => ({ ...r }))],
+      timerMs: 0,
+      solved: false,
+      _colorIdx: ci,
+      started: false,
+    });
   }
-  raceBanner.style.display = '';
-  updateRaceBanner();
-
-  loadRaceStage();
 }
 
-function updateRaceBanner() {
-  if (!raceBanner) return;
-  const stage = RACE_STAGES[raceStage];
-  raceBanner.innerHTML =
-    `<span class="race-label">RACE</span>` +
-    `<span class="race-progress">Stage ${raceStage + 1}/5: ${stage.label} (${stage.size}×${stage.size})</span>` +
-    `<span style="color:var(--text-dim);">Seed: ${raceSeed}</span>`;
+function saveCurrentBoard() {
+  if (!raceActive || raceStage < 0 || !raceBoards[raceStage]) return;
+  const board = raceBoards[raceStage];
+  board.userRects = userRects.map(r => ({ ...r }));
+  board.history = history;
+  board.replayLog = replayLog;
+  board.timerMs = timerMs;
+  board.solved = solved;
+  board._colorIdx = _colorIdx;
 }
 
-function loadRaceStage() {
-  const stage = RACE_STAGES[raceStage];
-  const seed  = stageSeed(raceSeed, raceStage);
+function loadBoard(idx) {
+  stopTimer();
+  stopAnim();
 
-  // Set the size dropdown to match (for fitToScreen calculations)
+  // Save current board state before switching
+  if (raceStage >= 0 && raceBoards[raceStage]) {
+    saveCurrentBoard();
+  }
+
+  raceStage = idx;
+  const board = raceBoards[idx];
+  const stage = RACE_STAGES[idx];
+
+  // Set size dropdown for fitToScreen
   const sel = $('sizeSelect');
   for (const opt of sel.options) {
     if (parseInt(opt.value, 10) === stage.size) { sel.value = opt.value; break; }
   }
 
-  prepareNewGame(seed);
+  // Restore board state to globals
+  puzzle    = board.puzzle;
+  userRects = board.userRects.map(r => ({ ...r }));
+  history   = board.history;
+  replayLog = board.replayLog;
+  _colorIdx = board._colorIdx;
+  timerMs   = board.timerMs;
+  solved    = board.solved;
+  paused    = false;
+  currentSeed = puzzle.seed;
 
-  // Override cover screen text for race
-  $('coverSize').textContent = `Stage ${raceStage + 1}/5: ${stage.label} (${stage.size}×${stage.size})`;
-  $('coverSeed').textContent = `Race seed: ${raceSeed}`;
+  // Rebuild owner from userRects
+  owner = makeOwner(puzzle.size);
+  rebuildOwner();
+
+  // Update timer display
+  const t = formatTime(timerMs);
+  $('timer').textContent = t;
+  $('focusTimer').textContent = t;
+
+  resizeCanvas();
+  fitToScreen();
+
+  if (solved) {
+    // Completed board — read-only view
+    const cover = $('coverScreen');
+    cover.classList.add('hidden');
+    cover.style.display = 'none';
+    $('pauseOverlay').classList.add('hidden');
+    $('pauseOverlay').style.display = 'none';
+    drawAll();
+  } else if (!board.started) {
+    // Not yet started — show cover screen
+    $('coverSize').textContent = `Stage ${idx + 1}/5: ${stage.label} (${stage.size}×${stage.size})`;
+    $('coverSeed').textContent = `Race seed: ${raceSeed}`;
+    const cover = $('coverScreen');
+    cover.style.display = '';
+    cover.classList.remove('hidden');
+    $('pauseOverlay').classList.add('hidden');
+    $('pauseOverlay').style.display = 'none';
+    drawAll();
+  } else {
+    // In-progress board — resume timer
+    const cover = $('coverScreen');
+    cover.classList.add('hidden');
+    cover.style.display = 'none';
+    $('pauseOverlay').classList.add('hidden');
+    $('pauseOverlay').style.display = 'none';
+    drawAll();
+    startTimer();
+    if (userRects.some(r => getRectState(r) !== 'ok')) startAnim();
+  }
+
+  updateRaceBanner();
+}
+
+function updateRaceBanner() {
+  if (!raceBanner) return;
+  const stage = RACE_STAGES[raceStage];
+
+  // Build stage tabs
+  let tabs = '';
+  for (let i = 0; i < RACE_STAGES.length; i++) {
+    const s = RACE_STAGES[i];
+    const board = raceBoards[i];
+    const isCurrent = i === raceStage;
+    const isSolved = board && board.solved;
+
+    let cls = 'race-tab';
+    if (isCurrent) cls += ' race-tab-active';
+    if (isSolved) cls += ' race-tab-solved';
+
+    const label = isSolved ? '\u2713' : (i + 1);
+    tabs += `<button class="${cls}" data-stage="${i}" title="${s.label} (${s.size}\u00d7${s.size})">${label}</button>`;
+  }
+
+  raceBanner.innerHTML =
+    `<span class="race-label">RACE</span>` +
+    `<div class="race-tabs">${tabs}</div>` +
+    `<span class="race-progress">${stage.label} (${stage.size}\u00d7${stage.size})</span>` +
+    `<span class="race-timer">${formatTime(timerMs)}</span>` +
+    `<div class="race-actions">` +
+      `<button class="btn btn-icon btn-sm" id="raceUndoBtn" title="Undo">&#x21A9;</button>` +
+      `<button class="btn btn-icon btn-sm" id="raceClearBtn" title="Clear">Clear</button>` +
+    `</div>` +
+    `<span style="color:var(--text-muted);font-size:0.75rem;">${raceSeed}</span>`;
+
+  // Wire up tab clicks
+  raceBanner.querySelectorAll('.race-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const idx = parseInt(tab.dataset.stage);
+      if (idx !== raceStage) loadBoard(idx);
+    });
+  });
+
+  $('raceUndoBtn').addEventListener('click', undo);
+  $('raceClearBtn').addEventListener('click', clearAll);
 }
 
 function onRaceWin() {
-  raceTimes.push(timerMs);
-  raceSnapshots.push({
-    puzzle: puzzle,
-    userRects: userRects.map(r => ({ ...r })),
-  });
+  // Save solved state to the board
+  raceBoards[raceStage].timerMs = timerMs;
+  raceBoards[raceStage].solved = true;
+  raceBoards[raceStage].userRects = userRects.map(r => ({ ...r }));
 
-  raceStage++;
-  if (raceStage < RACE_STAGES.length) {
-    // Next stage — brief delay then load
-    updateRaceBanner();
-    setTimeout(() => loadRaceStage(), 1000);
-  } else {
-    // Race complete!
+  // Check if all boards are solved
+  const allSolved = raceBoards.every(b => b.solved);
+
+  if (allSolved) {
+    // Populate raceTimes and raceSnapshots for results/history
+    raceTimes = raceBoards.map(b => b.timerMs);
+    raceSnapshots = raceBoards.map(b => ({
+      puzzle: b.puzzle,
+      userRects: b.userRects.map(r => ({ ...r })),
+    }));
     raceActive = false;
     endRace();
+  } else {
+    // Update banner to show the solved tab
+    updateRaceBanner();
   }
 }
 
@@ -1298,7 +1655,7 @@ function endRace() {
       const seed = btn.dataset.seed;
       const url = window.location.origin + window.location.pathname + '#seed=' + seed;
       navigator.clipboard.writeText(url).then(() => {
-        btn.textContent = '✓';
+        btn.textContent = '\u2713';
         setTimeout(() => btn.innerHTML = '&#x1F517;', 1500);
       });
     });
@@ -1307,7 +1664,6 @@ function endRace() {
   $('raceTotalTime').textContent = `Total: ${formatTime(total)}`;
   $('raceSeedDisplay').textContent = raceSeed;
 
-  // Save to race history
   saveRaceToHistory();
 
   $('raceResultsModal').classList.remove('hidden');
@@ -1321,25 +1677,22 @@ function viewRaceBoard(idx) {
   const snap = raceSnapshots[idx];
   const stage = RACE_STAGES[idx];
 
-  // Set the size dropdown so fitToScreen works
   const sel = $('sizeSelect');
   for (const opt of sel.options) {
     if (parseInt(opt.value, 10) === stage.size) { sel.value = opt.value; break; }
   }
 
-  // Load the snapshot onto the canvas
   puzzle    = snap.puzzle;
   userRects = snap.userRects.map(r => ({ ...r }));
   owner     = makeOwner(puzzle.size);
   rebuildOwner();
-  solved    = true; // read-only
+  solved    = true;
   currentSeed = puzzle.seed;
 
   resizeCanvas();
   fitToScreen();
   drawAll();
 
-  // Hide cover screen
   const cover = $('coverScreen');
   cover.classList.add('hidden');
   cover.style.display = 'none';
@@ -1353,6 +1706,9 @@ function viewRaceBoard(idx) {
     main.insertBefore(raceBanner, main.firstChild);
   }
   raceBanner.style.display = '';
+  $('gameView').classList.add('race-active');
+  $('gameView').classList.remove('hidden');
+  $('homeScreen').classList.add('hidden');
   updateReviewBanner();
 
   $('raceResultsModal').classList.add('hidden');
@@ -1383,6 +1739,7 @@ function exitRaceReview() {
   raceReviewing = false;
   raceReviewIdx = -1;
   if (raceBanner) raceBanner.style.display = 'none';
+  $('gameView').classList.remove('race-active');
   if (raceReviewSource === 'history') {
     openRaceHistory();
   } else {
@@ -1398,7 +1755,7 @@ function loadRaceHistory() {
 }
 
 function saveRaceToHistory() {
-  const history = loadRaceHistory();
+  const hist = loadRaceHistory();
   let total = 0;
   for (const t of raceTimes) total += t;
 
@@ -1410,7 +1767,7 @@ function saveRaceToHistory() {
     userRects: snap.userRects,
   }));
 
-  history.unshift({
+  hist.unshift({
     raceSeed,
     date: new Date().toISOString(),
     totalMs: total,
@@ -1418,24 +1775,23 @@ function saveRaceToHistory() {
     stages,
   });
 
-  // Keep last 20 races
-  if (history.length > 20) history.length = 20;
-  localStorage.setItem('shikaku_race_history', JSON.stringify(history));
+  if (hist.length > 20) hist.length = 20;
+  localStorage.setItem('shikaku_race_history', JSON.stringify(hist));
 }
 
 function openRaceHistory() {
-  const history = loadRaceHistory();
+  const hist = loadRaceHistory();
   const content = $('raceHistoryContent');
 
-  if (history.length === 0) {
+  if (hist.length === 0) {
     content.innerHTML = '<div class="stats-empty">No races completed yet.</div>';
     $('raceHistoryModal').classList.remove('hidden');
     return;
   }
 
   let html = '';
-  for (let h = 0; h < history.length; h++) {
-    const race = history[h];
+  for (let h = 0; h < hist.length; h++) {
+    const race = hist[h];
     const date = new Date(race.date);
     const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     const timeStr = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
@@ -1461,7 +1817,6 @@ function openRaceHistory() {
 
   content.innerHTML = html;
 
-  // Toggle expand on header click
   content.querySelectorAll('.race-history-header').forEach(header => {
     header.addEventListener('click', () => {
       const idx = header.dataset.race;
@@ -1471,7 +1826,6 @@ function openRaceHistory() {
     });
   });
 
-  // Click stage to view board
   content.querySelectorAll('.race-history-stage').forEach(row => {
     row.addEventListener('click', () => {
       const raceIdx = parseInt(row.dataset.race);
@@ -1484,15 +1838,12 @@ function openRaceHistory() {
 }
 
 function viewHistoryBoard(raceIdx, stageIdx) {
-  const history = loadRaceHistory();
-  const race = history[raceIdx];
+  const hist = loadRaceHistory();
+  const race = hist[raceIdx];
   if (!race || !race.stages[stageIdx]) return;
-
-  const st = race.stages[stageIdx];
 
   const gen = race.generator || 'natural';
 
-  // Load snapshots into raceSnapshots so viewRaceBoard works
   raceSnapshots = race.stages.map(s => {
     const p = generatePuzzle(s.size, s.seed, gen);
     return { puzzle: p, userRects: s.userRects };
@@ -1508,14 +1859,14 @@ function buildShareText() {
   let total = 0;
   for (const t of raceTimes) total += t;
 
-  let text = `🧩 Shikaku Race\n`;
-  text += `━━━━━━━━━━━━━━━━━\n`;
+  let text = `Shikaku of the Instant — Race\n`;
+  text += `---\n`;
   for (let i = 0; i < RACE_STAGES.length; i++) {
     const s = RACE_STAGES[i];
-    text += `${s.size}×${s.size} ${s.label.padEnd(8)} ${formatTime(raceTimes[i])}\n`;
+    text += `${s.size}x${s.size} ${s.label.padEnd(8)} ${formatTime(raceTimes[i])}\n`;
   }
-  text += `━━━━━━━━━━━━━━━━━\n`;
-  text += `⏱️ Total: ${formatTime(total)}\n`;
-  text += `🌱 Seed: ${raceSeed}`;
+  text += `---\n`;
+  text += `Total: ${formatTime(total)}\n`;
+  text += `Seed: ${raceSeed}`;
   return text;
 }

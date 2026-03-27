@@ -3,112 +3,166 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shikaku</title>
+  <title>Shikaku of the Instant</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%230e1420'/><rect x='2' y='2' width='13' height='18' rx='1' fill='%235b8fd4' opacity='.75'/><rect x='17' y='2' width='13' height='10' rx='1' fill='%23d28237' opacity='.75'/><rect x='17' y='14' width='13' height='16' rx='1' fill='%23af4141' opacity='.75'/><rect x='2' y='22' width='13' height='8' rx='1' fill='%23824bb9' opacity='.75'/></svg>">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="app">
-    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
-    <aside class="sidebar" id="sidebar">
-      <div class="sidebar-top">
-        <h1 class="logo">Shikaku</h1>
 
-        <div class="sb-section">
-          <div class="timer-row">
-            <div class="timer" id="timer">00:00.00</div>
-            <button class="btn btn-icon timer-pause-btn" id="pauseBtn" title="Pause">&#x23F8;</button>
+    <!-- ── Home Screen ──────────────────────────────────────────────────── -->
+    <div id="homeScreen" class="home-screen">
+      <div class="home-content">
+        <h1 class="home-logo">Shikaku <span class="home-logo-sub">of the Instant</span></h1>
+
+        <div class="home-daily">
+          <div class="home-daily-header">
+            <span class="home-daily-label">INSTANT RACE</span>
+            <span class="home-daily-date" id="homeDailyDate"></span>
+          </div>
+          <div class="home-stages">
+            <span class="home-stage">5×5</span>
+            <span class="home-arrow">&rarr;</span>
+            <span class="home-stage">10×10</span>
+            <span class="home-arrow">&rarr;</span>
+            <span class="home-stage">20×20</span>
+            <span class="home-arrow">&rarr;</span>
+            <span class="home-stage">30×30</span>
+            <span class="home-arrow">&rarr;</span>
+            <span class="home-stage">40×40</span>
+          </div>
+          <div id="homeDailyResult" class="home-daily-result"></div>
+          <button class="btn btn-accent btn-lg home-start-btn" id="startDailyBtn">Start Race</button>
+          <div class="home-daily-seed" id="homeDailySeed"></div>
+        </div>
+
+        <div class="home-custom">
+          <label class="home-custom-label">Custom Race</label>
+          <div class="home-custom-row">
+            <input type="text" id="homeCustomSeed" placeholder="Enter seed..." spellcheck="false">
+            <button class="btn btn-primary" id="startCustomBtn">Start</button>
           </div>
         </div>
 
-        <div class="sb-section">
-          <label class="sb-label">Board Size</label>
-          <select id="sizeSelect">
-            <option value="5">5×5 &mdash; Beginner</option>
-            <option value="7">7×7 &mdash; Easy</option>
-            <option value="10">10×10 &mdash; Medium</option>
-            <option value="15">15×15 &mdash; Hard</option>
-            <option value="20" selected>20×20 &mdash; Expert</option>
-            <option value="25">25×25 &mdash; Grandmaster</option>
-            <option value="30">30×30 &mdash; Legend</option>
-            <option value="40">40×40 &mdash; Master</option>
-          </select>
-        </div>
+        <button class="btn btn-secondary home-freeplay-btn" id="freePlayBtn">Free Play</button>
 
-        <div class="sb-section">
-          <div class="actions-row">
-            <button class="btn btn-icon action-btn" id="undoBtn" title="Undo">&#x21A9;</button>
-            <button class="btn btn-icon action-btn" id="clearBtn" title="Clear all">Clear</button>
-            <button class="btn btn-icon action-btn" id="fullscreenBtn" title="Focus mode">&#x26F6;</button>
+        <div id="homeRecentRaces" class="home-recent"></div>
+
+        <div class="home-footer">
+          <button class="btn btn-ghost btn-sm" id="homeHistoryBtn">History</button>
+          <button class="btn btn-ghost btn-sm" id="homeStatsBtn">Statistics</button>
+          <button class="btn btn-ghost btn-sm" id="homeSettingsBtn">Settings</button>
+          <button class="btn btn-ghost btn-sm" id="homeHelpBtn">Help</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Game View ────────────────────────────────────────────────────── -->
+    <div id="gameView" class="game-view hidden">
+      <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-top">
+          <div class="sidebar-header">
+            <h1 class="logo">Shikaku <span class="logo-sub">of the Instant</span></h1>
+            <button class="btn btn-ghost btn-sm" id="homeBtn">Home</button>
           </div>
-        </div>
 
-        <div class="sb-section">
-          <button class="btn btn-accent btn-block" id="raceBtn">Race Mode</button>
-        </div>
-
-        <div class="sb-divider"></div>
-
-        <button class="btn btn-ghost btn-block sb-toggle" id="advancedToggle">&#x25B6; Advanced</button>
-        <div class="sb-advanced hidden" id="advancedPanel">
           <div class="sb-section">
-            <label class="sb-label">Seed</label>
-            <div class="seed-row">
-              <input type="text" id="seedInput" placeholder="Paste seed..." spellcheck="false">
-              <button class="btn btn-secondary btn-sm" id="loadSeedBtn">Load</button>
+            <div class="timer-row">
+              <div class="timer" id="timer">00:00.00</div>
+              <button class="btn btn-icon timer-pause-btn" id="pauseBtn" title="Pause">&#x23F8;</button>
             </div>
           </div>
 
           <div class="sb-section">
-            <label class="sb-label">Zoom</label>
-            <div class="zoom-row">
-              <button class="zoom-btn active" id="fitBtn">Fit</button>
-              <button class="zoom-btn" data-zoom="1">100%</button>
-              <button class="zoom-btn" data-zoom="1.25">125%</button>
-              <button class="zoom-btn" data-zoom="1.5">150%</button>
-              <button class="zoom-btn" data-zoom="2">200%</button>
+            <label class="sb-label">Board Size</label>
+            <select id="sizeSelect">
+              <option value="5">5×5 &mdash; Beginner</option>
+              <option value="7">7×7 &mdash; Easy</option>
+              <option value="10">10×10 &mdash; Medium</option>
+              <option value="15">15×15 &mdash; Hard</option>
+              <option value="20" selected>20×20 &mdash; Expert</option>
+              <option value="25">25×25 &mdash; Grandmaster</option>
+              <option value="30">30×30 &mdash; Legend</option>
+              <option value="40">40×40 &mdash; Master</option>
+            </select>
+          </div>
+
+          <div class="sb-section">
+            <div class="actions-row">
+              <button class="btn btn-icon action-btn" id="undoBtn" title="Undo">&#x21A9;</button>
+              <button class="btn btn-icon action-btn" id="clearBtn" title="Clear all">Clear</button>
+              <button class="btn btn-icon action-btn" id="fullscreenBtn" title="Focus mode">&#x26F6;</button>
+            </div>
+          </div>
+
+          <div class="sb-section">
+            <button class="btn btn-accent btn-block" id="raceBtn">Race Mode</button>
+          </div>
+
+          <div class="sb-divider"></div>
+
+          <button class="btn btn-ghost btn-block sb-toggle" id="advancedToggle">&#x25B6; Advanced</button>
+          <div class="sb-advanced hidden" id="advancedPanel">
+            <div class="sb-section">
+              <label class="sb-label">Seed</label>
+              <div class="seed-row">
+                <input type="text" id="seedInput" placeholder="Paste seed..." spellcheck="false">
+                <button class="btn btn-secondary btn-sm" id="loadSeedBtn">Load</button>
+              </div>
+            </div>
+
+            <div class="sb-section">
+              <label class="sb-label">Zoom</label>
+              <div class="zoom-row">
+                <button class="zoom-btn active" id="fitBtn">Fit</button>
+                <button class="zoom-btn" data-zoom="1">100%</button>
+                <button class="zoom-btn" data-zoom="1.25">125%</button>
+                <button class="zoom-btn" data-zoom="1.5">150%</button>
+                <button class="zoom-btn" data-zoom="2">200%</button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="sidebar-bottom">
-        <button class="btn btn-ghost btn-block" id="statsBtn">&#x1F4CA; Statistics</button>
-        <button class="btn btn-ghost btn-block" id="settingsBtn">&#x2699; Settings</button>
-        <div class="help-dropdown">
-          <button class="btn btn-ghost btn-block" id="helpBtn">? Help</button>
-          <div class="help-menu" id="helpMenu">
-            <button id="howToBtn">How to play</button>
-            <a href="how-generation-works.html" target="_blank">How generation works</a>
-          </div>
-        </div>
-      </div>
-    </aside>
-
-    <main class="main-area" id="mainArea">
-      <button class="btn btn-icon mobile-menu-btn" id="menuBtn">&#x2630;</button>
-      <div id="focusTimer"></div>
-      <button class="btn btn-icon" id="focusExit">&#10005; Exit Focus</button>
-
-      <div class="grid-container" id="gridContainer">
-        <div class="grid-wrapper" id="gridWrapper">
-          <div id="coverScreen" class="cover-screen">
-            <div class="cover-content">
-              <p class="cover-subtitle" id="coverSize">20×20 — Expert</p>
-              <p class="cover-seed" id="coverSeed"></p>
-              <button class="btn btn-primary btn-lg" id="startGameBtn">Start Game</button>
+        <div class="sidebar-bottom">
+          <button class="btn btn-ghost btn-block" id="statsBtn">&#x1F4CA; Statistics</button>
+          <button class="btn btn-ghost btn-block" id="settingsBtn">&#x2699; Settings</button>
+          <div class="help-dropdown">
+            <button class="btn btn-ghost btn-block" id="helpBtn">? Help</button>
+            <div class="help-menu" id="helpMenu">
+              <button id="howToBtn">How to play</button>
+              <a href="how-generation-works.html" target="_blank">How generation works</a>
             </div>
           </div>
-          <div id="pauseOverlay" class="cover-screen hidden">
-            <div class="cover-content">
-              <p class="cover-subtitle">Paused</p>
-              <button class="btn btn-primary btn-lg" id="resumeBtn">Resume</button>
-            </div>
-          </div>
-          <canvas id="gameCanvas"></canvas>
         </div>
-      </div>
-    </main>
+      </aside>
+
+      <main class="main-area" id="mainArea">
+        <button class="btn btn-icon mobile-menu-btn" id="menuBtn">&#x2630;</button>
+        <div id="focusTimer"></div>
+        <button class="btn btn-icon" id="focusExit">&#10005; Exit Focus</button>
+
+        <div class="grid-container" id="gridContainer">
+          <div class="grid-wrapper" id="gridWrapper">
+            <div id="coverScreen" class="cover-screen">
+              <div class="cover-content">
+                <p class="cover-subtitle" id="coverSize">20×20 — Expert</p>
+                <p class="cover-seed" id="coverSeed"></p>
+                <button class="btn btn-primary btn-lg" id="startGameBtn">Start Game</button>
+              </div>
+            </div>
+            <div id="pauseOverlay" class="cover-screen hidden">
+              <div class="cover-content">
+                <p class="cover-subtitle">Paused</p>
+                <button class="btn btn-primary btn-lg" id="resumeBtn">Resume</button>
+              </div>
+            </div>
+            <canvas id="gameCanvas"></canvas>
+          </div>
+        </div>
+      </main>
+    </div>
   </div>
 
   <!-- Modals -->
@@ -193,6 +247,7 @@
       </div>
       <div style="display:flex;gap:8px;margin-top:8px;">
         <button class="btn btn-primary" id="shareRaceBtn">Share Results</button>
+        <button class="btn btn-accent" id="raceHomeBtn">Home</button>
         <button class="btn btn-secondary" id="closeRaceResultsBtn">Done</button>
       </div>
     </div>

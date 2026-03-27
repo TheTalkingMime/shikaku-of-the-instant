@@ -11,6 +11,7 @@
   --primary-dim:   rgba(91,143,212,0.15);
   --accent:        #e8924a;
   --accent-hover:  #d47e38;
+  --accent-dim:    rgba(232,146,74,0.12);
   --text:          #e2e6f0;
   --text-dim:      #6b7f9a;
   --text-muted:    #4a5b72;
@@ -29,8 +30,279 @@ body {
 }
 
 #app {
-  display: flex;
   height: 100vh;
+}
+
+/* ── Home Screen ──────────────────────────────────────────────────────── */
+.home-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  background: var(--bg);
+  overflow-y: auto;
+}
+
+.home-screen.hidden {
+  display: none;
+}
+
+.home-content {
+  width: 100%;
+  max-width: 420px;
+  padding: 40px 24px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.home-logo {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--text);
+  margin-bottom: 32px;
+}
+
+.home-logo-sub {
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  display: block;
+  margin-top: 2px;
+}
+
+.logo-sub {
+  font-size: 0.55rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--accent);
+}
+
+/* Daily race card */
+.home-daily {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px 24px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.home-daily-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.home-daily-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.home-daily-date {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+
+.home-stages {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.home-stage {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+}
+
+.home-arrow {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.home-daily-result {
+  margin-bottom: 16px;
+  font-size: 0.88rem;
+  color: var(--primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-daily-result:empty {
+  display: none;
+}
+
+.home-start-btn {
+  padding: 16px 48px;
+  font-size: 1.15rem;
+  border-radius: var(--radius);
+}
+
+.home-daily-seed {
+  margin-top: 14px;
+  font-size: 0.75rem;
+  font-family: 'Consolas', 'SF Mono', monospace;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+}
+
+/* Custom race row */
+.home-custom {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+}
+
+.home-custom-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.home-custom-row {
+  display: flex;
+  gap: 8px;
+}
+
+.home-custom-row input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: 'Consolas', 'SF Mono', monospace;
+  transition: border-color var(--transition);
+}
+
+.home-custom-row input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* Free play button */
+.home-freeplay-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 0.92rem;
+  margin-bottom: 24px;
+}
+
+/* Recent races */
+.home-recent {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.home-recent:empty {
+  display: none;
+}
+
+.home-recent-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.home-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.home-recent-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.home-recent-row:hover {
+  background: var(--surface-2);
+  border-color: var(--border-light);
+}
+
+.home-recent-seed {
+  color: var(--text-dim);
+  font-family: 'Consolas', 'SF Mono', monospace;
+  font-size: 0.78rem;
+}
+
+.home-recent-time {
+  color: var(--primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-recent-date {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+/* Footer links */
+.home-footer {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ── Game View ────────────────────────────────────────────────────────── */
+.game-view {
+  display: flex;
+  height: 100%;
+  width: 100%;
+}
+
+.game-view.hidden {
+  display: none;
+}
+
+/* Race-active mode: hide sidebar, full-width game */
+.game-view.race-active .sidebar {
+  display: none;
+}
+
+.game-view.race-active .main-area {
+  width: 100%;
+}
+
+.game-view.race-active .mobile-menu-btn {
+  display: none;
 }
 
 /* ── Sidebar ─────────────────────────────────────────────────────────── */
@@ -60,6 +332,17 @@ body {
   flex-direction: column;
   gap: 4px;
   border-top: 1px solid var(--border);
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.sidebar-header .logo {
+  margin-bottom: 0;
 }
 
 .logo {
@@ -544,6 +827,7 @@ body.focus-mode #focusExit {
   font-size: 0.85rem;
   color: var(--text-dim);
   z-index: 15;
+  flex-wrap: wrap;
 }
 .race-banner .race-label {
   font-weight: 700;
@@ -554,6 +838,79 @@ body.focus-mode #focusExit {
 .race-banner .race-progress {
   color: var(--text);
   font-weight: 600;
+}
+
+.race-banner .race-timer {
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.race-banner .race-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* Race stage tabs */
+.race-tabs {
+  display: flex;
+  gap: 3px;
+}
+
+.race-tab {
+  width: 30px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.race-tab:hover {
+  background: var(--border);
+  color: var(--text);
+  border-color: var(--border-light);
+}
+
+.race-tab-active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.race-tab-active:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.race-tab-solved {
+  background: rgba(80,190,80,0.2);
+  color: #6cd46c;
+  border-color: rgba(80,190,80,0.4);
+}
+
+.race-tab-solved:hover {
+  background: rgba(80,190,80,0.3);
+}
+
+.race-tab-active.race-tab-solved {
+  background: rgba(80,190,80,0.5);
+  color: #fff;
+  border-color: rgba(80,190,80,0.7);
+}
+
+.race-tab-active.race-tab-solved:hover {
+  background: rgba(80,190,80,0.6);
 }
 
 .race-results-list {
@@ -603,6 +960,7 @@ body.focus-mode #focusExit {
   opacity: 0.3;
   cursor: default;
 }
+
 /* ── Statistics ──────────────────────────────────────────────────────── */
 .stats-content {
   max-height: 360px;
@@ -735,6 +1093,10 @@ body.focus-mode #focusExit {
     display: block;
   }
 
+  .game-view.race-active .mobile-menu-btn {
+    display: none;
+  }
+
   .sidebar {
     position: fixed;
     top: 0;
@@ -773,6 +1135,29 @@ body.focus-mode #focusExit {
   .seed-copy-row {
     flex-wrap: wrap;
   }
+
+  .home-content {
+    padding: 24px 16px 40px;
+  }
+
+  .home-daily {
+    padding: 20px 16px;
+  }
+
+  .home-stages {
+    gap: 4px;
+  }
+
+  .home-stage {
+    font-size: 0.78rem;
+    padding: 3px 6px;
+  }
+
+  .race-banner {
+    padding: 6px 12px;
+    gap: 8px;
+    font-size: 0.78rem;
+  }
 }
 
 /* ── Race History ────────────────────────────────────────────────────── */
@@ -801,7 +1186,7 @@ body.focus-mode #focusExit {
   background: var(--border);
 }
 .race-history-header::before {
-  content: '▶';
+  content: '\25B6';
   font-size: 0.65rem;
   color: var(--text-muted);
   margin-right: 8px;
