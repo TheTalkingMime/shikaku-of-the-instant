@@ -135,7 +135,7 @@ let currentSeed = '';
 let replayLog = [];
 let _colorIdx = 0;
 
-let activePalette = 'classic';
+let activePalette = 'happy';
 let activeGenerator = 'natural';
 let canvas, ctx;
 
@@ -217,6 +217,7 @@ function showHomeScreen() {
 
   window.history.replaceState(null, '', window.location.pathname);
   refreshHomeScreen();
+  startHomeAnimation();
 }
 
 function refreshHomeScreen() {
@@ -233,24 +234,59 @@ function renderRecentRaces() {
     return;
   }
 
-  const recent = hist.slice(0, 5);
-  let html = '<div class="home-recent-title">Recent Races</div><div class="home-recent-list">';
-  for (const race of recent) {
+  let html = '<div class="home-recent-title">Recent Races</div>';
+  for (let h = 0; h < hist.length; h++) {
+    const race = hist[h];
     const date = new Date(race.date);
     const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    html += `<div class="home-recent-row" data-seed="${race.raceSeed}">`;
-    html += `<span class="home-recent-seed">${race.raceSeed}</span>`;
-    html += `<span class="home-recent-time">${formatTime(race.totalMs)}</span>`;
-    html += `<span class="home-recent-date">${dateStr}</span>`;
+    const timeStr = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+
+    html += `<div class="race-history-entry">`;
+    html += `<div class="race-history-header" data-race="${h}">`;
+    html += `<div class="race-history-left">`;
+    html += `<span class="race-history-date">${dateStr} ${timeStr}</span>`;
+    html += `<span class="race-history-seed">Seed: ${race.raceSeed}</span>`;
     html += `</div>`;
+    html += `<span class="race-result-time">${formatTime(race.totalMs)}</span>`;
+    html += `</div>`;
+    html += `<div class="race-history-stages hidden" id="homeRaceStages_${h}">`;
+    for (let s = 0; s < race.stages.length; s++) {
+      const st = race.stages[s];
+      const hasReplay = st.replayLog && st.replayLog.length >= 2;
+      html += `<div class="race-result-row race-result-clickable race-history-stage" data-race="${h}" data-stage="${s}">`;
+      html += `<span class="race-result-name">${st.label} (${st.size}×${st.size})</span>`;
+      html += `<span class="race-result-time">${formatTime(st.timeMs)}</span>`;
+      if (hasReplay) html += `<button class="btn btn-secondary btn-sm race-replay-btn" data-race="${h}" data-stage="${s}" title="Replay">\u25B6</button>`;
+      html += `</div>`;
+    }
+    html += `</div></div>`;
   }
-  html += '</div>';
   container.innerHTML = html;
 
-  container.querySelectorAll('.home-recent-row').forEach(row => {
-    row.addEventListener('click', () => {
-      const seed = row.dataset.seed;
-      startRaceFromHome(seed);
+  container.querySelectorAll('.race-history-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const idx = header.dataset.race;
+      const stages = $('homeRaceStages_' + idx);
+      stages.classList.toggle('hidden');
+      header.classList.toggle('expanded');
+    });
+  });
+
+  container.querySelectorAll('.race-history-stage').forEach(row => {
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('.race-replay-btn')) return;
+      const raceIdx = parseInt(row.dataset.race);
+      const stageIdx = parseInt(row.dataset.stage);
+      viewHistoryBoard(raceIdx, stageIdx);
+    });
+  });
+
+  container.querySelectorAll('.race-replay-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const raceIdx = parseInt(btn.dataset.race);
+      const stageIdx = parseInt(btn.dataset.stage);
+      showHistoryReplay(raceIdx, stageIdx);
     });
   });
 }
@@ -417,6 +453,7 @@ window.addEventListener('DOMContentLoaded', () => {
   $('shareImageBtn').addEventListener('click', shareAsImage);
 
   $('closeSettings').addEventListener('click', () => $('settingsModal').classList.add('hidden'));
+  $('closeReplayModal').addEventListener('click', closeRaceReplay);
 
   $('closeStats').addEventListener('click', () => $('statsModal').classList.add('hidden'));
   $('resetStats').addEventListener('click', () => {
@@ -462,7 +499,6 @@ window.addEventListener('DOMContentLoaded', () => {
     $('raceResultsModal').classList.add('hidden');
     showHomeScreen();
   });
-  $('closeRaceHistory').addEventListener('click', () => $('raceHistoryModal').classList.add('hidden'));
 
   // --- Home screen buttons ---
   $('startRaceBtn').addEventListener('click', () => {
@@ -483,7 +519,6 @@ window.addEventListener('DOMContentLoaded', () => {
     showGameView('freeplay');
     prepareNewGame();
   });
-  $('homeHistoryBtn').addEventListener('click', openRaceHistory);
   $('homeStatsBtn').addEventListener('click', openStats);
   $('homeSettingsBtn').addEventListener('click', openSettings);
   $('homeHelpBtn').addEventListener('click', () => $('howToModal').classList.remove('hidden'));
@@ -947,18 +982,38 @@ function drawFaces(cx, rects, px) {
     cx.arc(centerX + eyeSpacing, centerY - eyeOffsetY, eyeR, 0, Math.PI * 2);
     cx.fill();
 
-    // Mouth
-    const mouthR = faceR * 0.25;
     cx.strokeStyle = 'rgba(0,0,0,0.55)';
-    cx.lineWidth = Math.max(1.5, faceR * 0.07);
     cx.lineCap = 'round';
-    cx.beginPath();
+
     if (isValid) {
+      // Happy smile :)
+      const mouthR = faceR * 0.25;
+      cx.lineWidth = Math.max(1.5, faceR * 0.07);
+      cx.beginPath();
       cx.arc(centerX, centerY + faceR * 0.08, mouthR, 0.15 * Math.PI, 0.85 * Math.PI);
+      cx.stroke();
     } else {
-      cx.arc(centerX, centerY + faceR * 0.42, mouthR, 1.15 * Math.PI, 1.85 * Math.PI);
+      // Angry face >:(
+      // Eyebrows angled down toward center
+      const browLen = eyeR * 2.2;
+      const browY = centerY - eyeOffsetY - eyeR * 2.2;
+      cx.lineWidth = Math.max(2, faceR * 0.1);
+      cx.beginPath();
+      cx.moveTo(centerX - eyeSpacing - browLen * 0.6, browY - browLen * 0.35);
+      cx.lineTo(centerX - eyeSpacing + browLen * 0.4, browY + browLen * 0.35);
+      cx.stroke();
+      cx.beginPath();
+      cx.moveTo(centerX + eyeSpacing + browLen * 0.6, browY - browLen * 0.35);
+      cx.lineTo(centerX + eyeSpacing - browLen * 0.4, browY + browLen * 0.35);
+      cx.stroke();
+
+      // Angry frown
+      const mouthR = faceR * 0.22;
+      cx.lineWidth = Math.max(1.5, faceR * 0.08);
+      cx.beginPath();
+      cx.arc(centerX, centerY + faceR * 0.45, mouthR, 1.2 * Math.PI, 1.8 * Math.PI);
+      cx.stroke();
     }
-    cx.stroke();
   }
 }
 
@@ -1260,13 +1315,50 @@ function formatTime(ms) {
 }
 
 // ─── Replay ──────────────────────────────────────────────────────────────────
+
+// Strip colors and sample frames for compact localStorage storage
+function compactReplayLog(log) {
+  if (!log || log.length < 2) return [];
+  // Deduplicate identical consecutive frames
+  const unique = [log[0]];
+  for (let i = 1; i < log.length; i++) {
+    if (JSON.stringify(log[i]) !== JSON.stringify(log[i - 1]))
+      unique.push(log[i]);
+  }
+  // Sample down to max 30 frames
+  const maxFrames = 30;
+  let sampled;
+  if (unique.length <= maxFrames) {
+    sampled = unique;
+  } else {
+    sampled = [unique[0]];
+    for (let i = 1; i < maxFrames - 1; i++) {
+      const idx = Math.round(i * (unique.length - 1) / (maxFrames - 1));
+      sampled.push(unique[idx]);
+    }
+    sampled.push(unique[unique.length - 1]);
+  }
+  // Strip color info, keep only geometry
+  return sampled.map(frame =>
+    frame.map(r => ({ r: r.r, c: r.c, w: r.w, h: r.h }))
+  );
+}
+
+// Re-apply colors to a compact replay log
+function recolorReplayLog(log) {
+  const colors = getActiveColors();
+  return log.map(frame =>
+    frame.map((r, i) => ({ ...r, ...colors[i % colors.length] }))
+  );
+}
+
 function renderReplay() {
   const replayCanvas = $('replayCanvas');
   const statusEl     = $('replayStatus');
 
   if (replayLog.length < 2) return;
 
-  const maxPx = 400;
+  const maxPx = 800;
   const rpx   = Math.min(maxPx, puzzle.size * CELL);
   const rCell = rpx / puzzle.size;
   const dpr   = window.devicePixelRatio || 1;
@@ -1560,6 +1652,7 @@ function onRaceWin() {
   raceBoards[raceStage].timerMs = timerMs;
   raceBoards[raceStage].solved = true;
   raceBoards[raceStage].userRects = userRects.map(r => ({ ...r }));
+  raceBoards[raceStage].replayLog = replayLog;
 
   const allSolved = raceBoards.every(b => b.solved);
 
@@ -1568,6 +1661,7 @@ function onRaceWin() {
     raceSnapshots = raceBoards.map(b => ({
       puzzle: b.puzzle,
       userRects: b.userRects.map(r => ({ ...r })),
+      replayLog: b.replayLog,
     }));
     raceActive = false;
     endRace();
@@ -1591,12 +1685,14 @@ function endRace() {
     const seed = raceSnapshots[i] ? raceSnapshots[i].puzzle.seed : '';
     const row = document.createElement('div');
     row.className = 'race-result-row race-result-clickable';
+    const hasReplay = raceSnapshots[i] && raceSnapshots[i].replayLog && raceSnapshots[i].replayLog.length >= 2;
     row.innerHTML =
       `<span class="race-result-name">${RACE_STAGES[i].label} (${RACE_STAGES[i].size}×${RACE_STAGES[i].size})</span>` +
       `<span class="race-result-time">${formatTime(raceTimes[i])}</span>` +
+      (hasReplay ? `<button class="btn btn-secondary btn-sm race-replay-btn" data-stage="${i}" title="Replay">\u25B6</button>` : '') +
       `<button class="btn btn-secondary btn-sm race-link-btn" data-seed="${seed}" title="Copy link">&#x1F517;</button>`;
     row.addEventListener('click', (e) => {
-      if (e.target.closest('.race-link-btn')) return;
+      if (e.target.closest('.race-link-btn') || e.target.closest('.race-replay-btn')) return;
       raceReviewSource = 'results';
       viewRaceBoard(i);
     });
@@ -1612,6 +1708,14 @@ function endRace() {
         btn.textContent = '\u2713';
         setTimeout(() => btn.innerHTML = '&#x1F517;', 1500);
       });
+    });
+  });
+
+  list.querySelectorAll('.race-replay-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const stageIdx = parseInt(btn.dataset.stage);
+      showRaceReplay(stageIdx);
     });
   });
 
@@ -1651,6 +1755,11 @@ function viewRaceBoard(idx) {
 
   $('gameView').classList.remove('hidden');
   $('homeScreen').classList.add('hidden');
+
+  // Remove old replay button so updateReviewTabs creates a fresh one for this stage
+  const oldReplayBtn = $('topBarCenter').querySelector('#raceReplayBtn');
+  if (oldReplayBtn) oldReplayBtn.remove();
+
   updateReviewTabs();
 
   $('raceResultsModal').classList.add('hidden');
@@ -1682,6 +1791,22 @@ function updateReviewTabs() {
     center.appendChild(badge);
   }
 
+  // Add Replay button if replay data exists
+  let replayBtn = center.querySelector('#raceReplayBtn');
+  if (!replayBtn) {
+    const snap = raceSnapshots[raceReviewIdx];
+    const hasReplay = snap && snap.replayLog && snap.replayLog.length >= 2;
+    if (hasReplay) {
+      replayBtn = document.createElement('button');
+      replayBtn.id = 'raceReplayBtn';
+      replayBtn.className = 'btn btn-secondary btn-sm';
+      replayBtn.textContent = '\u25B6 Replay';
+      replayBtn.style.marginLeft = '6px';
+      replayBtn.addEventListener('click', () => showRaceReplay(raceReviewIdx));
+      center.appendChild(replayBtn);
+    }
+  }
+
   let exitBtn = center.querySelector('#raceExitReview');
   if (!exitBtn) {
     exitBtn = document.createElement('button');
@@ -1701,6 +1826,8 @@ function exitRaceReview() {
   const center = $('topBarCenter');
   const badge = center.querySelector('.top-review-badge');
   if (badge) badge.remove();
+  const replayBtn = center.querySelector('#raceReplayBtn');
+  if (replayBtn) replayBtn.remove();
   const exitBtn = center.querySelector('#raceExitReview');
   if (exitBtn) exitBtn.remove();
 
@@ -1708,10 +1835,104 @@ function exitRaceReview() {
   updateActiveDiffTab(currentSize);
 
   if (raceReviewSource === 'history') {
-    openRaceHistory();
+    goHome();
   } else {
     $('raceResultsModal').classList.remove('hidden');
   }
+}
+
+let raceReplayTimer = null;
+
+function showRaceReplay(stageIdx) {
+  const snap = raceSnapshots[stageIdx];
+  if (!snap || !snap.replayLog || snap.replayLog.length < 2) return;
+
+  const stage = RACE_STAGES[stageIdx];
+  const p = snap.puzzle;
+
+  // Re-colorize if needed (history loads strip colors)
+  let log = snap.replayLog;
+  const firstNonEmpty = log.find(f => f.length > 0);
+  if (firstNonEmpty && !firstNonEmpty[0].fill) {
+    log = recolorReplayLog(log);
+  }
+
+  // Deduplicate frames
+  const frames = [log[0]];
+  for (let i = 1; i < log.length; i++) {
+    if (JSON.stringify(log[i]) !== JSON.stringify(log[i - 1]))
+      frames.push(log[i]);
+  }
+
+  const replayCanvas = $('raceReplayCanvas');
+  const statusEl = $('raceReplayStatus');
+
+  const maxPx = 800;
+  const rpx = Math.min(maxPx, p.size * CELL);
+  const rCell = rpx / p.size;
+  const dpr = window.devicePixelRatio || 1;
+
+  replayCanvas.width = Math.round(rpx * dpr);
+  replayCanvas.height = Math.round(rpx * dpr);
+  replayCanvas.style.display = 'block';
+
+  const rctx = replayCanvas.getContext('2d');
+  rctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  $('replayModalTitle').textContent = `Replay — ${stage.label} (${stage.size}×${stage.size})`;
+  statusEl.textContent = '';
+  $('replayModal').classList.remove('hidden');
+
+  const totalMs = Math.min(10000, Math.max(5000, frames.length * 200));
+  const delayMs = Math.max(50, Math.round(totalMs / frames.length));
+  const lastDelay = 2000;
+
+  function drawFrame(rectsSnap) {
+    rctx.clearRect(0, 0, rpx, rpx);
+    drawGrid(rctx, p.size, rCell, 0, 0, rectsSnap, p.clues,
+      { dash: [2, 4], gridLw: 1, rectLw: 1.5, rectMargin: 1, shadow: false });
+  }
+
+  let frame = 0;
+  if (raceReplayTimer) clearTimeout(raceReplayTimer);
+
+  function animate() {
+    drawFrame(frames[frame]);
+    frame++;
+    if (frame >= frames.length) {
+      raceReplayTimer = setTimeout(() => { frame = 0; animate(); }, lastDelay);
+    } else {
+      raceReplayTimer = setTimeout(animate, delayMs);
+    }
+  }
+  animate();
+}
+
+function showHistoryReplay(raceIdx, stageIdx) {
+  const hist = loadRaceHistory();
+  const race = hist[raceIdx];
+  if (!race || !race.stages[stageIdx]) return;
+  const st = race.stages[stageIdx];
+  if (!st.replayLog || st.replayLog.length < 2) return;
+
+  const gen = race.generator || 'natural';
+  const p = generatePuzzle(st.size, st.seed, gen);
+
+  // Build a temporary snapshot for showRaceReplay
+  const tempIdx = stageIdx;
+  const oldSnapshots = raceSnapshots;
+  raceSnapshots = race.stages.map((s, i) => ({
+    puzzle: generatePuzzle(s.size, s.seed, gen),
+    userRects: s.userRects,
+    replayLog: s.replayLog || [],
+  }));
+  showRaceReplay(tempIdx);
+  raceSnapshots = oldSnapshots;
+}
+
+function closeRaceReplay() {
+  if (raceReplayTimer) { clearTimeout(raceReplayTimer); raceReplayTimer = null; }
+  $('replayModal').classList.add('hidden');
 }
 
 // ─── Race History ─────────────────────────────────────────────────────────────
@@ -1732,6 +1953,7 @@ function saveRaceToHistory() {
     label: RACE_STAGES[i].label,
     timeMs: raceTimes[i],
     userRects: snap.userRects,
+    replayLog: compactReplayLog(snap.replayLog || []),
   }));
 
   hist.unshift({
@@ -1742,66 +1964,8 @@ function saveRaceToHistory() {
     stages,
   });
 
-  if (hist.length > 20) hist.length = 20;
+  if (hist.length > 10) hist.length = 10;
   localStorage.setItem('shikaku_race_history', JSON.stringify(hist));
-}
-
-function openRaceHistory() {
-  const hist = loadRaceHistory();
-  const content = $('raceHistoryContent');
-
-  if (hist.length === 0) {
-    content.innerHTML = '<div class="stats-empty">No races completed yet.</div>';
-    $('raceHistoryModal').classList.remove('hidden');
-    return;
-  }
-
-  let html = '';
-  for (let h = 0; h < hist.length; h++) {
-    const race = hist[h];
-    const date = new Date(race.date);
-    const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-    const timeStr = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-
-    html += `<div class="race-history-entry">`;
-    html += `<div class="race-history-header" data-race="${h}">`;
-    html += `<div class="race-history-left">`;
-    html += `<span class="race-history-date">${dateStr} ${timeStr}</span>`;
-    html += `<span class="race-history-seed">Seed: ${race.raceSeed}</span>`;
-    html += `</div>`;
-    html += `<span class="race-result-time">${formatTime(race.totalMs)}</span>`;
-    html += `</div>`;
-    html += `<div class="race-history-stages hidden" id="raceHistoryStages_${h}">`;
-    for (let s = 0; s < race.stages.length; s++) {
-      const st = race.stages[s];
-      html += `<div class="race-result-row race-result-clickable race-history-stage" data-race="${h}" data-stage="${s}">`;
-      html += `<span class="race-result-name">${st.label} (${st.size}×${st.size})</span>`;
-      html += `<span class="race-result-time">${formatTime(st.timeMs)}</span>`;
-      html += `</div>`;
-    }
-    html += `</div></div>`;
-  }
-
-  content.innerHTML = html;
-
-  content.querySelectorAll('.race-history-header').forEach(header => {
-    header.addEventListener('click', () => {
-      const idx = header.dataset.race;
-      const stages = $('raceHistoryStages_' + idx);
-      stages.classList.toggle('hidden');
-      header.classList.toggle('expanded');
-    });
-  });
-
-  content.querySelectorAll('.race-history-stage').forEach(row => {
-    row.addEventListener('click', () => {
-      const raceIdx = parseInt(row.dataset.race);
-      const stageIdx = parseInt(row.dataset.stage);
-      viewHistoryBoard(raceIdx, stageIdx);
-    });
-  });
-
-  $('raceHistoryModal').classList.remove('hidden');
 }
 
 function viewHistoryBoard(raceIdx, stageIdx) {
@@ -1813,12 +1977,15 @@ function viewHistoryBoard(raceIdx, stageIdx) {
 
   raceSnapshots = race.stages.map(s => {
     const p = generatePuzzle(s.size, s.seed, gen);
-    return { puzzle: p, userRects: s.userRects };
+    return {
+      puzzle: p,
+      userRects: s.userRects,
+      replayLog: s.replayLog || [],
+    };
   });
   raceTimes = race.stages.map(s => s.timeMs);
 
   raceReviewSource = 'history';
-  $('raceHistoryModal').classList.add('hidden');
   viewRaceBoard(stageIdx);
 }
 
@@ -1836,4 +2003,164 @@ function buildShareText() {
   text += `Total: ${formatTime(total)}\n`;
   text += `Seed: ${raceSeed}`;
   return text;
+}
+
+// ─── Home Screen Illustration ─────────────────────────────────────────────────
+let homeAnimRAF = null;
+
+function startHomeAnimation() {
+  if (homeAnimRAF) return; // already running
+
+  const c = $('homeIllustration');
+  if (!c) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const size = 160;
+  const gridSize = 5;
+  const cellPx = size / gridSize;
+
+  c.width = Math.round(size * dpr);
+  c.height = Math.round(size * dpr);
+
+  const cx = c.getContext('2d');
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // A pre-solved 5×5 puzzle
+  const rects = [
+    { r: 0, c: 0, w: 3, h: 2 },
+    { r: 0, c: 3, w: 2, h: 1 },
+    { r: 1, c: 3, w: 1, h: 2 },
+    { r: 1, c: 4, w: 1, h: 1 },
+    { r: 2, c: 0, w: 2, h: 2 },
+    { r: 2, c: 2, w: 1, h: 3 },
+    { r: 2, c: 4, w: 1, h: 1 },
+    { r: 3, c: 3, w: 2, h: 2 },
+    { r: 4, c: 0, w: 2, h: 1 },
+  ];
+
+  // Clue numbers (area of each rect, placed roughly in center)
+  const clues = rects.map(rect => ({
+    numR: rect.r + Math.floor(rect.h / 2),
+    numC: rect.c + Math.floor(rect.w / 2),
+    area: rect.w * rect.h,
+  }));
+
+  const colors = getActiveColors();
+  const hasFaces = PALETTES[activePalette].faces;
+
+  const rectDelay = 320;
+  const holdTime = 2200;
+  const fadeTime = 500;
+  const pauseTime = 900;
+  const totalRectTime = rects.length * rectDelay;
+  const cycleTime = totalRectTime + holdTime + fadeTime + pauseTime;
+
+  let startTime = performance.now();
+
+  function draw() {
+    // Stop if home screen is hidden
+    if ($('homeScreen').classList.contains('hidden')) {
+      homeAnimRAF = null;
+      return;
+    }
+
+    const elapsed = (performance.now() - startTime) % cycleTime;
+
+    cx.clearRect(0, 0, size, size);
+
+    // Grid background
+    for (let r = 0; r < gridSize; r++)
+      for (let col = 0; col < gridSize; col++) {
+        cx.fillStyle = (r + col) % 2 === 0 ? COLOR.cellA : COLOR.cellB;
+        cx.fillRect(col * cellPx, r * cellPx, cellPx, cellPx);
+      }
+
+    // Grid lines
+    cx.strokeStyle = 'rgba(255,255,255,0.18)';
+    cx.lineWidth = 0.5;
+    cx.setLineDash([2, 3]);
+    for (let i = 1; i < gridSize; i++) {
+      cx.beginPath();
+      cx.moveTo(i * cellPx, 0); cx.lineTo(i * cellPx, size);
+      cx.moveTo(0, i * cellPx); cx.lineTo(size, i * cellPx);
+      cx.stroke();
+    }
+    cx.setLineDash([]);
+
+    // Fade phase
+    let globalAlpha = 1;
+    if (elapsed > totalRectTime + holdTime) {
+      const fadeElapsed = elapsed - totalRectTime - holdTime;
+      globalAlpha = fadeElapsed < fadeTime ? 1 - fadeElapsed / fadeTime : 0;
+    }
+
+    // Draw rects one by one
+    const visibleCount = Math.min(rects.length, Math.floor(elapsed / rectDelay) + 1);
+    for (let i = 0; i < visibleCount; i++) {
+      const rect = rects[i];
+      const color = colors[i % colors.length];
+      const rectAge = elapsed - i * rectDelay;
+      const alpha = Math.min(1, rectAge / 180) * globalAlpha;
+
+      cx.globalAlpha = alpha;
+      const m = 1.5;
+      cx.fillStyle = color.fill;
+      cx.fillRect(rect.c * cellPx + m, rect.r * cellPx + m, rect.w * cellPx - m * 2, rect.h * cellPx - m * 2);
+      cx.strokeStyle = color.stroke;
+      cx.lineWidth = 1.5;
+      cx.strokeRect(rect.c * cellPx + m, rect.r * cellPx + m, rect.w * cellPx - m * 2, rect.h * cellPx - m * 2);
+
+      // Happy faces on rects large enough
+      if (hasFaces) {
+        const rw = rect.w * cellPx;
+        const rh = rect.h * cellPx;
+        const minDim = Math.min(rw, rh);
+        if (minDim >= 22) {
+          const fcx = rect.c * cellPx + rw / 2;
+          const fcy = rect.r * cellPx + rh / 2;
+          const fr = minDim * 0.28;
+          const er = Math.max(1.2, fr * 0.12);
+          const esp = fr * 0.3;
+          const eoy = fr * 0.15;
+
+          cx.fillStyle = 'rgba(0,0,0,0.5)';
+          cx.beginPath(); cx.arc(fcx - esp, fcy - eoy, er, 0, Math.PI * 2); cx.fill();
+          cx.beginPath(); cx.arc(fcx + esp, fcy - eoy, er, 0, Math.PI * 2); cx.fill();
+
+          cx.strokeStyle = 'rgba(0,0,0,0.5)';
+          cx.lineWidth = Math.max(1, fr * 0.06);
+          cx.lineCap = 'round';
+          cx.beginPath();
+          cx.arc(fcx, fcy + fr * 0.06, fr * 0.2, 0.15 * Math.PI, 0.85 * Math.PI);
+          cx.stroke();
+        }
+      }
+    }
+
+    // Clue numbers
+    if (globalAlpha > 0) {
+      const fontSize = Math.max(8, Math.round(cellPx * 0.38));
+      cx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
+      cx.textAlign = 'center';
+      cx.textBaseline = 'middle';
+      for (let i = 0; i < visibleCount; i++) {
+        const clue = clues[i];
+        const rectAge = elapsed - i * rectDelay;
+        const alpha = Math.min(1, rectAge / 180) * globalAlpha;
+        cx.globalAlpha = alpha;
+
+        const lx = (clue.numC + 0.5) * cellPx;
+        const ly = (clue.numR + 0.5) * cellPx;
+        cx.fillStyle = 'rgba(0,0,0,0.45)';
+        cx.fillText(String(clue.area), lx + 0.5, ly + 0.5);
+        cx.fillStyle = '#fff';
+        cx.fillText(String(clue.area), lx, ly);
+      }
+    }
+
+    cx.globalAlpha = 1;
+    homeAnimRAF = requestAnimationFrame(draw);
+  }
+
+  homeAnimRAF = requestAnimationFrame(draw);
 }

@@ -74,7 +74,18 @@ body {
 
 .home-brand {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.home-illustration {
+  width: 160px;
+  height: 160px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04);
 }
 
 .home-logo {
@@ -236,45 +247,8 @@ body {
   margin-bottom: 8px;
 }
 
-.home-recent-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.home-recent-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 0.82rem;
-  cursor: pointer;
-  transition: background var(--transition), border-color var(--transition);
-}
-
-.home-recent-row:hover {
-  background: var(--surface-2);
-  border-color: var(--border-light);
-}
-
-.home-recent-seed {
-  color: var(--text-dim);
-  font-family: 'Consolas', 'SF Mono', monospace;
-  font-size: 0.78rem;
-}
-
-.home-recent-time {
-  color: var(--primary);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.home-recent-date {
-  color: var(--text-muted);
-  font-size: 0.75rem;
+.home-recent .race-history-entry + .race-history-entry {
+  margin-top: 6px;
 }
 
 /* Footer links */
@@ -938,13 +912,6 @@ body.focus-mode #focusExit {
 }
 
 /* ── Race History ────────────────────────────────────────────────────── */
-.race-history-content {
-  max-height: 400px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
 .race-history-entry {
   border: 1px solid var(--border);
   border-radius: var(--radius);
