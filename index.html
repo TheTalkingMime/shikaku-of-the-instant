@@ -13,38 +13,27 @@
     <!-- ── Home Screen ──────────────────────────────────────────────────── -->
     <div id="homeScreen" class="home-screen">
       <div class="home-content">
-        <h1 class="home-logo">Shikaku <span class="home-logo-sub">of the Instant</span></h1>
-
-        <div class="home-daily">
-          <div class="home-daily-header">
-            <span class="home-daily-label">INSTANT RACE</span>
-            <span class="home-daily-date" id="homeDailyDate"></span>
-          </div>
-          <div class="home-stages">
-            <span class="home-stage">5×5</span>
-            <span class="home-arrow">&rarr;</span>
-            <span class="home-stage">10×10</span>
-            <span class="home-arrow">&rarr;</span>
-            <span class="home-stage">20×20</span>
-            <span class="home-arrow">&rarr;</span>
-            <span class="home-stage">30×30</span>
-            <span class="home-arrow">&rarr;</span>
-            <span class="home-stage">40×40</span>
-          </div>
-          <div id="homeDailyResult" class="home-daily-result"></div>
-          <button class="btn btn-accent btn-lg home-start-btn" id="startDailyBtn">Start Race</button>
-          <div class="home-daily-seed" id="homeDailySeed"></div>
+        <div class="home-brand">
+          <h1 class="home-logo">Shikaku</h1>
+          <span class="home-logo-sub">of the Instant</span>
         </div>
 
-        <div class="home-custom">
-          <label class="home-custom-label">Custom Race</label>
-          <div class="home-custom-row">
-            <input type="text" id="homeCustomSeed" placeholder="Enter seed..." spellcheck="false">
-            <button class="btn btn-primary" id="startCustomBtn">Start</button>
+        <div class="home-race-card">
+          <div class="home-race-header">
+            <span class="home-race-label">RACE</span>
+            <span class="home-race-desc">5 boards &middot; Easy to Master</span>
           </div>
+          <div class="home-seed-row">
+            <label class="home-seed-label" for="homeSeedInput">Seed</label>
+            <div class="home-seed-input-wrap">
+              <input type="text" id="homeSeedInput" spellcheck="false">
+              <button class="home-seed-refresh" id="homeSeedRefresh" title="New seed">&#x21BB;</button>
+            </div>
+          </div>
+          <button class="btn btn-accent btn-lg home-start-btn" id="startRaceBtn">Start Race</button>
         </div>
 
-        <button class="btn btn-secondary home-freeplay-btn" id="freePlayBtn">Free Play</button>
+        <button class="btn btn-primary home-freeplay-btn" id="freePlayBtn">Free Play</button>
 
         <div id="homeRecentRaces" class="home-recent"></div>
 
@@ -59,87 +48,41 @@
 
     <!-- ── Game View ────────────────────────────────────────────────────── -->
     <div id="gameView" class="game-view hidden">
-      <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
-      <aside class="sidebar" id="sidebar">
-        <div class="sidebar-top">
-          <div class="sidebar-header">
-            <h1 class="logo">Shikaku <span class="logo-sub">of the Instant</span></h1>
-            <button class="btn btn-ghost btn-sm" id="homeBtn">Home</button>
-          </div>
 
-          <div class="sb-section">
-            <div class="timer-row">
-              <div class="timer" id="timer">00:00.00</div>
-              <button class="btn btn-icon timer-pause-btn" id="pauseBtn" title="Pause">&#x23F8;</button>
-            </div>
-          </div>
+      <nav class="top-bar" id="topBar">
+        <div class="top-bar-left">
+          <button class="top-btn" id="topHomeBtn" title="Home">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          </button>
+        </div>
 
-          <div class="sb-section">
-            <label class="sb-label">Board Size</label>
-            <select id="sizeSelect">
-              <option value="5">5×5 &mdash; Beginner</option>
-              <option value="7">7×7 &mdash; Easy</option>
-              <option value="10">10×10 &mdash; Medium</option>
-              <option value="15">15×15 &mdash; Hard</option>
-              <option value="20" selected>20×20 &mdash; Expert</option>
-              <option value="25">25×25 &mdash; Grandmaster</option>
-              <option value="30">30×30 &mdash; Legend</option>
-              <option value="40">40×40 &mdash; Master</option>
-            </select>
-          </div>
-
-          <div class="sb-section">
-            <div class="actions-row">
-              <button class="btn btn-icon action-btn" id="undoBtn" title="Undo">&#x21A9;</button>
-              <button class="btn btn-icon action-btn" id="clearBtn" title="Clear all">Clear</button>
-              <button class="btn btn-icon action-btn" id="fullscreenBtn" title="Focus mode">&#x26F6;</button>
-            </div>
-          </div>
-
-          <div class="sb-section">
-            <button class="btn btn-accent btn-block" id="raceBtn">Race Mode</button>
-          </div>
-
-          <div class="sb-divider"></div>
-
-          <button class="btn btn-ghost btn-block sb-toggle" id="advancedToggle">&#x25B6; Advanced</button>
-          <div class="sb-advanced hidden" id="advancedPanel">
-            <div class="sb-section">
-              <label class="sb-label">Seed</label>
-              <div class="seed-row">
-                <input type="text" id="seedInput" placeholder="Paste seed..." spellcheck="false">
-                <button class="btn btn-secondary btn-sm" id="loadSeedBtn">Load</button>
-              </div>
-            </div>
-
-            <div class="sb-section">
-              <label class="sb-label">Zoom</label>
-              <div class="zoom-row">
-                <button class="zoom-btn active" id="fitBtn">Fit</button>
-                <button class="zoom-btn" data-zoom="1">100%</button>
-                <button class="zoom-btn" data-zoom="1.25">125%</button>
-                <button class="zoom-btn" data-zoom="1.5">150%</button>
-                <button class="zoom-btn" data-zoom="2">200%</button>
-              </div>
-            </div>
+        <div class="top-bar-center" id="topBarCenter">
+          <div id="difficultyTabs" class="difficulty-tabs">
+            <button class="diff-tab" data-size="5">Easy<span class="diff-sub">5×5</span></button>
+            <button class="diff-tab" data-size="10">Medium<span class="diff-sub">10×10</span></button>
+            <button class="diff-tab active" data-size="20">Hard<span class="diff-sub">20×20</span></button>
+            <button class="diff-tab" data-size="30">Expert<span class="diff-sub">30×30</span></button>
+            <button class="diff-tab" data-size="40">Master<span class="diff-sub">40×40</span></button>
           </div>
         </div>
 
-        <div class="sidebar-bottom">
-          <button class="btn btn-ghost btn-block" id="statsBtn">&#x1F4CA; Statistics</button>
-          <button class="btn btn-ghost btn-block" id="settingsBtn">&#x2699; Settings</button>
-          <div class="help-dropdown">
-            <button class="btn btn-ghost btn-block" id="helpBtn">? Help</button>
-            <div class="help-menu" id="helpMenu">
-              <button id="howToBtn">How to play</button>
-              <a href="how-generation-works.html" target="_blank">How generation works</a>
-            </div>
+        <div class="top-bar-right">
+          <div class="top-timer-group">
+            <span class="top-timer" id="topTimerDisplay">00:00.00</span>
+            <button class="top-btn" id="topPauseBtn" title="Pause">&#x23F8;</button>
           </div>
+          <button class="top-btn" id="topUndoBtn" title="Undo (Ctrl+Z)">&#x21A9;</button>
+          <button class="top-btn" id="topClearBtn" title="Clear board">&#x2715;</button>
+          <div class="top-zoom-group">
+            <button class="top-btn top-btn-sm" id="topZoomOut" title="Zoom out">&minus;</button>
+            <button class="top-zoom-label" id="topZoomLabel" title="Reset to Fit">Fit</button>
+            <button class="top-btn top-btn-sm" id="topZoomIn" title="Zoom in">+</button>
+          </div>
+          <button class="top-btn" id="topSettingsBtn" title="Settings">&#x2699;</button>
         </div>
-      </aside>
+      </nav>
 
       <main class="main-area" id="mainArea">
-        <button class="btn btn-icon mobile-menu-btn" id="menuBtn">&#x2630;</button>
         <div id="focusTimer"></div>
         <button class="btn btn-icon" id="focusExit">&#10005; Exit Focus</button>
 
@@ -147,7 +90,7 @@
           <div class="grid-wrapper" id="gridWrapper">
             <div id="coverScreen" class="cover-screen">
               <div class="cover-content">
-                <p class="cover-subtitle" id="coverSize">20×20 — Expert</p>
+                <p class="cover-subtitle" id="coverSize">20×20 — Hard</p>
                 <p class="cover-seed" id="coverSeed"></p>
                 <button class="btn btn-primary btn-lg" id="startGameBtn">Start Game</button>
               </div>
@@ -198,29 +141,6 @@
       <div style="display:flex;gap:8px;">
         <button class="btn btn-primary" id="nextGameBtn">New Game</button>
         <button class="btn btn-secondary" id="shareImageBtn">Copy Image</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="raceLobbyModal" class="modal hidden">
-    <div class="modal-box">
-      <h2>Race Mode</h2>
-      <p style="font-size:0.92rem;">Solve 5 boards as fast as you can!</p>
-      <div class="race-stages">
-        <div class="race-stage">1. <strong>Easy</strong> &mdash; 5×5</div>
-        <div class="race-stage">2. <strong>Medium</strong> &mdash; 10×10</div>
-        <div class="race-stage">3. <strong>Hard</strong> &mdash; 20×20</div>
-        <div class="race-stage">4. <strong>Expert</strong> &mdash; 30×30</div>
-        <div class="race-stage">5. <strong>Master</strong> &mdash; 40×40</div>
-      </div>
-      <div class="seed-group" style="margin-bottom:16px;">
-        <label style="font-size:0.85rem;color:var(--text-dim);margin-right:6px;">Race seed:</label>
-        <input type="text" id="raceSeedInput" placeholder="(random)" spellcheck="false" style="width:120px;">
-      </div>
-      <div style="display:flex;gap:8px;">
-        <button class="btn btn-primary btn-lg" id="startRaceBtn">Start Race</button>
-        <button class="btn btn-secondary" id="raceHistoryBtn">History</button>
-        <button class="btn btn-secondary" id="cancelRaceBtn">Cancel</button>
       </div>
     </div>
   </div>

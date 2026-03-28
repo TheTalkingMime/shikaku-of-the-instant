@@ -107,9 +107,10 @@ const PALETTES = {
 };
 
 const SIZE_LABELS = {
-  5: 'Beginner', 7: 'Easy', 10: 'Medium', 15: 'Hard',
-  20: 'Expert', 25: 'Grandmaster', 30: 'Legend', 40: 'Master',
+  5: 'Easy', 10: 'Medium', 20: 'Hard', 30: 'Expert', 40: 'Master',
 };
+
+const ZOOM_LEVELS = ['fit', 1, 1.25, 1.5, 2];
 
 // ─── State ───────────────────────────────────────────────────────────────────
 let puzzle    = null;
@@ -137,6 +138,9 @@ let _colorIdx = 0;
 let activePalette = 'classic';
 let activeGenerator = 'natural';
 let canvas, ctx;
+
+let currentSize = 20;
+let zoomLevelIdx = 0;
 
 // ─── View mode: 'home' | 'freeplay' | 'race' ────────────────────────────────
 let viewMode = 'home';
@@ -180,8 +184,6 @@ function getBest(size) {
 const $ = id => document.getElementById(id);
 
 // ─── Instant Race Seed ───────────────────────────────────────────────────────
-// Each page load captures the current Unix timestamp as the race seed.
-// "Of the Instant" — every moment is a unique race.
 let instantSeed = null;
 
 function getInstantRaceSeed() {
@@ -201,32 +203,25 @@ function showHomeScreen() {
   viewMode = 'home';
   $('homeScreen').classList.remove('hidden');
   $('gameView').classList.add('hidden');
-  $('gameView').classList.remove('race-active');
-  if (raceBanner) raceBanner.style.display = 'none';
   stopTimer();
   stopAnim();
+
+  // Clean up any race/review tab state
+  $('difficultyTabs').classList.remove('race-mode');
+  resetTabLabels();
+  const center = $('topBarCenter');
+  const badge = center.querySelector('.top-review-badge');
+  if (badge) badge.remove();
+  const exitBtn = center.querySelector('#raceExitReview');
+  if (exitBtn) exitBtn.remove();
+
   window.history.replaceState(null, '', window.location.pathname);
   refreshHomeScreen();
 }
 
 function refreshHomeScreen() {
-  // Generate a fresh instant seed each time we show the home screen
   refreshInstantSeed();
-
-  // Show current time
-  const now = new Date();
-  $('homeDailyDate').textContent = now.toLocaleTimeString(undefined, {
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-  });
-
-  // Seed
-  $('homeDailySeed').textContent = 'Seed: ' + getInstantRaceSeed();
-
-  // Always fresh — no "already completed" state
-  $('homeDailyResult').textContent = '';
-  $('startDailyBtn').textContent = 'Start Race';
-
-  // Recent races
+  $('homeSeedInput').value = getInstantRaceSeed();
   renderRecentRaces();
 }
 
@@ -252,7 +247,6 @@ function renderRecentRaces() {
   html += '</div>';
   container.innerHTML = html;
 
-  // Click recent race to replay that seed
   container.querySelectorAll('.home-recent-row').forEach(row => {
     row.addEventListener('click', () => {
       const seed = row.dataset.seed;
@@ -266,11 +260,61 @@ function showGameView(mode) {
   $('homeScreen').classList.add('hidden');
   $('gameView').classList.remove('hidden');
 
+  // Tabs are always visible; race-mode class changes their appearance
+  const tabs = $('difficultyTabs');
   if (mode === 'race') {
-    $('gameView').classList.add('race-active');
+    tabs.classList.add('race-mode');
   } else {
-    $('gameView').classList.remove('race-active');
+    tabs.classList.remove('race-mode');
+    updateActiveDiffTab(currentSize);
   }
+
+  // Clean up any stale review UI
+  const reviewDone = $('topBarCenter').querySelector('.top-review-badge');
+  if (reviewDone) reviewDone.remove();
+  const reviewExit = $('topBarCenter').querySelector('#raceExitReview');
+  if (reviewExit) reviewExit.remove();
+}
+
+function updateActiveDiffTab(size) {
+  document.querySelectorAll('.diff-tab').forEach(t => {
+    t.classList.toggle('active', parseInt(t.dataset.size) === size);
+  });
+}
+
+// ─── Zoom control ────────────────────────────────────────────────────────────
+function updateZoomLabel() {
+  const level = ZOOM_LEVELS[zoomLevelIdx];
+  $('topZoomLabel').textContent = level === 'fit' ? 'Fit' : Math.round(level * 100) + '%';
+}
+
+function zoomIn() {
+  if (!puzzle) return;
+  if (zoomLevelIdx < ZOOM_LEVELS.length - 1) {
+    zoomLevelIdx++;
+    applyZoom();
+  }
+}
+
+function zoomOut() {
+  if (!puzzle) return;
+  if (zoomLevelIdx > 0) {
+    zoomLevelIdx--;
+    applyZoom();
+  }
+}
+
+function applyZoom() {
+  const level = ZOOM_LEVELS[zoomLevelIdx];
+  if (level === 'fit') {
+    fitToScreen();
+  } else {
+    zoom   = level;
+    cellPx = Math.round(CELL * zoom);
+    resizeCanvas();
+    drawAll();
+  }
+  updateZoomLabel();
 }
 
 // ─── Init ────────────────────────────────────────────────────────────────────
@@ -284,18 +328,71 @@ window.addEventListener('DOMContentLoaded', () => {
   const savedGen = localStorage.getItem('shikaku_generator');
   if (savedGen && GENERATORS[savedGen]) activeGenerator = savedGen;
 
-  // --- Toolbar buttons ---
-  $('clearBtn').addEventListener('click', clearAll);
-  $('undoBtn').addEventListener('click', undo);
+  // --- Top bar buttons ---
 
-  // Size dropdown auto-starts new game
-  $('sizeSelect').addEventListener('change', () => { closeMobileMenu(); prepareNewGame(); });
+  // Home button
+  $('topHomeBtn').addEventListener('click', () => {
+    if (raceActive) {
+      if (!confirm('Abandon current race and return home?')) return;
+      abandonRace();
+    }
+    showHomeScreen();
+  });
 
-  // Seed loading
-  $('loadSeedBtn').addEventListener('click', loadSeed);
-  $('seedInput').addEventListener('keydown', e => { if (e.key === 'Enter') loadSeed(); });
+  // Difficulty tabs — serve as both difficulty selector (free play) and stage tabs (race)
+  document.querySelectorAll('.diff-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const size = parseInt(tab.dataset.size);
 
-  // Copy seed
+      if (raceActive) {
+        // In race mode, switch to the stage matching this size
+        const stageIdx = RACE_STAGES.findIndex(s => s.size === size);
+        if (stageIdx !== -1 && stageIdx !== raceStage) {
+          loadBoard(stageIdx);
+        }
+        return;
+      }
+
+      // Review mode — switch reviewed board
+      if (raceReviewIdx >= 0) {
+        const stageIdx = RACE_STAGES.findIndex(s => s.size === size);
+        if (stageIdx !== -1 && raceSnapshots[stageIdx]) {
+          viewRaceBoard(stageIdx);
+        }
+        return;
+      }
+
+      // Free play: start new game at this size
+      if (size === currentSize && puzzle && !solved) return;
+      currentSize = size;
+      updateActiveDiffTab(size);
+      prepareNewGame();
+    });
+  });
+
+  // Pause / resume
+  $('topPauseBtn').addEventListener('click', togglePause);
+  $('resumeBtn').addEventListener('click', togglePause);
+
+  // Undo
+  $('topUndoBtn').addEventListener('click', undo);
+
+  // Clear
+  $('topClearBtn').addEventListener('click', clearAll);
+
+  // Zoom
+  $('topZoomOut').addEventListener('click', zoomOut);
+  $('topZoomIn').addEventListener('click', zoomIn);
+  $('topZoomLabel').addEventListener('click', () => {
+    if (!puzzle) return;
+    zoomLevelIdx = 0;
+    applyZoom();
+  });
+
+  // Settings
+  $('topSettingsBtn').addEventListener('click', openSettings);
+
+  // --- Copy buttons ---
   $('copySeedBtn').addEventListener('click', () => {
     navigator.clipboard.writeText(currentSeed).then(() => {
       $('copySeedBtn').textContent = 'Copied!';
@@ -303,7 +400,6 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Copy link
   $('copyLinkBtn').addEventListener('click', () => {
     const url = window.location.origin + window.location.pathname + '#seed=' + currentSeed;
     navigator.clipboard.writeText(url).then(() => {
@@ -312,18 +408,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Help dropdown
-  $('helpBtn').addEventListener('click', e => {
-    e.stopPropagation();
-    $('helpMenu').classList.toggle('open');
-  });
-  document.addEventListener('click', () => $('helpMenu').classList.remove('open'));
-
-  // Modals
-  $('howToBtn').addEventListener('click', () => {
-    $('helpMenu').classList.remove('open');
-    $('howToModal').classList.remove('hidden');
-  });
+  // --- Modals ---
   $('closeHow').addEventListener('click', () => $('howToModal').classList.add('hidden'));
   $('nextGameBtn').addEventListener('click', () => {
     $('winModal').classList.add('hidden');
@@ -331,12 +416,8 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   $('shareImageBtn').addEventListener('click', shareAsImage);
 
-  // Settings
-  $('settingsBtn').addEventListener('click', openSettings);
   $('closeSettings').addEventListener('click', () => $('settingsModal').classList.add('hidden'));
 
-  // Stats
-  $('statsBtn').addEventListener('click', openStats);
   $('closeStats').addEventListener('click', () => $('statsModal').classList.add('hidden'));
   $('resetStats').addEventListener('click', () => {
     if (confirm('Reset all statistics? This cannot be undone.')) {
@@ -345,71 +426,31 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Click outside modal to dismiss
   for (const modal of document.querySelectorAll('.modal')) {
     modal.addEventListener('click', e => {
       if (e.target === modal) modal.classList.add('hidden');
     });
   }
 
-  // Zoom buttons
-  $('fitBtn').addEventListener('click', fitToScreen);
-  document.querySelectorAll('.zoom-btn[data-zoom]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.zoom-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      zoom   = parseFloat(btn.dataset.zoom);
-      cellPx = Math.round(CELL * zoom);
-      resizeCanvas();
-      drawAll();
-    });
-  });
-
-  // Focus mode
-  $('fullscreenBtn').addEventListener('click', enterFocus);
+  // Focus mode (keyboard shortcut only now - F key)
   $('focusExit').addEventListener('click', exitFocus);
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && document.body.classList.contains('focus-mode')) exitFocus();
+    if (e.key === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey && viewMode !== 'home' && document.activeElement === document.body) {
+      if (document.body.classList.contains('focus-mode')) exitFocus();
+      else enterFocus();
+    }
+    // Ctrl+Z for undo
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && viewMode !== 'home') {
+      e.preventDefault();
+      undo();
+    }
   });
-
-  // Mobile menu
-  $('menuBtn').addEventListener('click', () => {
-    $('sidebar').classList.add('open');
-    $('sidebarBackdrop').classList.add('open');
-  });
-  $('sidebarBackdrop').addEventListener('click', closeMobileMenu);
-
-  // Advanced toggle
-  $('advancedToggle').addEventListener('click', () => {
-    const panel = $('advancedPanel');
-    const btn = $('advancedToggle');
-    panel.classList.toggle('hidden');
-    btn.innerHTML = panel.classList.contains('hidden') ? '&#x25B6; Advanced' : '&#x25BC; Advanced';
-  });
-
-  // Pause / resume
-  $('pauseBtn').addEventListener('click', togglePause);
-  $('resumeBtn').addEventListener('click', togglePause);
 
   // Cover screen start button
   $('startGameBtn').addEventListener('click', startFromCover);
 
-  // Home button in sidebar
-  $('homeBtn').addEventListener('click', () => {
-    closeMobileMenu();
-    if (raceActive) {
-      if (!confirm('Abandon current race and return home?')) return;
-      abandonRace();
-    }
-    showHomeScreen();
-  });
-
-  // Race mode from sidebar (opens lobby modal for custom race)
-  $('raceBtn').addEventListener('click', () => { closeMobileMenu(); openRaceLobby(); });
-  $('startRaceBtn').addEventListener('click', startRace);
-  $('cancelRaceBtn').addEventListener('click', () => $('raceLobbyModal').classList.add('hidden'));
-  $('raceHistoryBtn').addEventListener('click', () => { $('raceLobbyModal').classList.add('hidden'); openRaceHistory(); });
-  $('closeRaceHistory').addEventListener('click', () => $('raceHistoryModal').classList.add('hidden'));
+  // --- Race buttons ---
   $('shareRaceBtn').addEventListener('click', () => {
     navigator.clipboard.writeText(buildShareText()).catch(() => {});
   });
@@ -421,20 +462,22 @@ window.addEventListener('DOMContentLoaded', () => {
     $('raceResultsModal').classList.add('hidden');
     showHomeScreen();
   });
+  $('closeRaceHistory').addEventListener('click', () => $('raceHistoryModal').classList.add('hidden'));
 
   // --- Home screen buttons ---
-  $('startDailyBtn').addEventListener('click', () => {
-    startRaceFromHome(getInstantRaceSeed());
-  });
-  $('startCustomBtn').addEventListener('click', () => {
-    const seed = $('homeCustomSeed').value.trim();
+  $('startRaceBtn').addEventListener('click', () => {
+    const seed = $('homeSeedInput').value.trim();
     startRaceFromHome(seed || undefined);
   });
-  $('homeCustomSeed').addEventListener('keydown', e => {
+  $('homeSeedInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') {
-      const seed = $('homeCustomSeed').value.trim();
+      const seed = $('homeSeedInput').value.trim();
       startRaceFromHome(seed || undefined);
     }
+  });
+  $('homeSeedRefresh').addEventListener('click', () => {
+    refreshInstantSeed();
+    $('homeSeedInput').value = getInstantRaceSeed();
   });
   $('freePlayBtn').addEventListener('click', () => {
     showGameView('freeplay');
@@ -487,24 +530,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // --- Window resize ---
   window.addEventListener('resize', () => {
-    if ($('fitBtn').classList.contains('active') && puzzle) fitToScreen();
+    if (zoomLevelIdx === 0 && puzzle) fitToScreen();
   });
 
   // --- URL seed sharing: check for seed in hash ---
   const hashSeed = window.location.hash.replace(/^#seed=/, '');
   if (hashSeed && hashSeed.includes('_')) {
-    // Parse size from seed and set dropdown
-    const parts = hashSeed.split('_');
-    const sizeVal = parseInt(parts[0], 10);
-    const sel = $('sizeSelect');
-    for (const opt of sel.options) {
-      if (parseInt(opt.value, 10) === sizeVal) { sel.value = opt.value; break; }
-    }
-    // Go directly to free play with this seed
     showGameView('freeplay');
     prepareNewGame(hashSeed);
+    updateActiveDiffTab(currentSize);
   } else {
-    // Show home screen by default
     showHomeScreen();
   }
 });
@@ -512,57 +547,44 @@ window.addEventListener('DOMContentLoaded', () => {
 // ─── Start race from home screen ─────────────────────────────────────────────
 function startRaceFromHome(seed) {
   raceSeed      = seed || makeRaceSeed();
-  raceStage     = -1; // no board loaded yet
+  raceStage     = -1;
   raceTimes     = [];
   raceSnapshots = [];
-  raceReviewing = false;
   raceReviewIdx = -1;
   raceActive    = true;
 
-  // Pre-generate all 5 boards
   initRaceBoards();
 
   showGameView('race');
 
-  // Disable sidebar controls
-  $('sizeSelect').disabled = true;
-  $('loadSeedBtn').disabled = true;
-  $('seedInput').disabled = true;
-  $('raceBtn').disabled = true;
-
-  // Create race banner
-  if (!raceBanner) {
-    raceBanner = document.createElement('div');
-    raceBanner.className = 'race-banner';
-    raceBanner.id = 'raceBanner';
-    const main = $('mainArea');
-    main.insertBefore(raceBanner, main.firstChild);
-  }
-  raceBanner.style.display = '';
-
-  // Load first board
   loadBoard(0);
 }
 
-// ─── Seed loading ────────────────────────────────────────────────────────────
-function loadSeed() {
-  const seed = $('seedInput').value.trim();
-  if (!seed) return;
-  const parts = seed.split('_');
+// ─── Seed loading (for hash URLs) ────────────────────────────────────────────
+function loadSeedFromString(seedStr) {
+  if (!seedStr) return;
+  const parts = seedStr.split('_');
   if (parts.length === 2) {
     const sizeVal = parseInt(parts[0], 10);
-    const sel = $('sizeSelect');
-    for (const opt of sel.options) {
-      if (parseInt(opt.value, 10) === sizeVal) { sel.value = opt.value; break; }
+    if ([5, 10, 20, 30, 40].includes(sizeVal)) {
+      currentSize = sizeVal;
+      updateActiveDiffTab(sizeVal);
     }
   }
-  prepareNewGame(seed);
-  $('seedInput').value = '';
+  prepareNewGame(seedStr);
 }
 
 // ─── Cover screen ────────────────────────────────────────────────────────────
 function prepareNewGame(seedStr) {
-  const size = parseInt($('sizeSelect').value, 10);
+  // If a seed is provided, parse the size from it
+  if (seedStr) {
+    const parts = seedStr.split('_');
+    if (parts.length >= 2) {
+      const sizeVal = parseInt(parts[0], 10);
+      if (sizeVal > 0) currentSize = sizeVal;
+    }
+  }
+  const size = currentSize;
   puzzle      = generatePuzzle(size, seedStr || undefined, activeGenerator);
   currentSeed = puzzle.seed;
   userRects   = [];
@@ -576,10 +598,10 @@ function prepareNewGame(seedStr) {
   stopAnim();
   stopTimer();
   timerMs = 0;
-  $('timer').textContent = '00:00.00';
+  $('topTimerDisplay').textContent = '00:00.00';
   $('focusTimer').textContent = '00:00.00';
-  $('pauseBtn').innerHTML = '&#x23F8;';
-  $('pauseBtn').title = 'Pause';
+  $('topPauseBtn').innerHTML = '&#x23F8;';
+  $('topPauseBtn').title = 'Pause';
 
   // Hide pause overlay
   $('pauseOverlay').classList.add('hidden');
@@ -597,17 +619,17 @@ function prepareNewGame(seedStr) {
   replayLog.push(userRects.map(r => ({ ...r })));
 
   resizeCanvas();
+  zoomLevelIdx = 0;
   fitToScreen();
+  updateZoomLabel();
 
-  // Record that a game was started
   recordPlay(size);
 
-  // Update URL hash for sharing (only in free play)
   if (viewMode === 'freeplay') {
     window.history.replaceState(null, '', '#seed=' + currentSeed);
   }
 
-  // Show cover screen over the grid
+  // Show cover screen
   const label = SIZE_LABELS[size] || '';
   $('coverSize').textContent = `${size}×${size}${label ? ' — ' + label : ''}`;
   const best = getBest(size);
@@ -633,23 +655,20 @@ function startFromCover() {
 function togglePause() {
   if (solved || !timerStart) return;
   if (paused) {
-    // Resume
     paused = false;
-    $('pauseBtn').innerHTML = '&#x23F8;';
-    $('pauseBtn').title = 'Pause';
+    $('topPauseBtn').innerHTML = '&#x23F8;';
+    $('topPauseBtn').title = 'Pause';
     const overlay = $('pauseOverlay');
     overlay.classList.add('hidden');
     setTimeout(() => overlay.style.display = 'none', 300);
     startTimer();
   } else {
-    // Pause
     paused = true;
     stopTimer();
-    $('pauseBtn').innerHTML = '&#x25B6;';
-    $('pauseBtn').title = 'Resume';
+    $('topPauseBtn').innerHTML = '&#x25B6;';
+    $('topPauseBtn').title = 'Resume';
     const overlay = $('pauseOverlay');
     overlay.style.display = '';
-    // Force reflow so transition plays
     overlay.offsetHeight;
     overlay.classList.remove('hidden');
   }
@@ -795,13 +814,22 @@ function stopAnim() {
   if (animRAF) { cancelAnimationFrame(animRAF); animRAF = null; }
 }
 
-// ─── Canvas sizing ───────────────────────────────────────────────────────────
+// ─── Canvas sizing (HiDPI-aware) ─────────────────────────────────────────────
 function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
   const px = cellPx * puzzle.size;
-  canvas.width  = px;
-  canvas.height = px;
+
+  // Set the internal resolution to native device pixels
+  canvas.width  = Math.round(px * dpr);
+  canvas.height = Math.round(px * dpr);
+
+  // Set the CSS display size
   canvas.style.width  = px + 'px';
   canvas.style.height = px + 'px';
+
+  // Scale the drawing context so all draw calls use CSS-pixel coordinates
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
   const wrapper = $('gridWrapper');
   wrapper.style.width  = px + 'px';
   wrapper.style.height = px + 'px';
@@ -810,24 +838,16 @@ function resizeCanvas() {
 function fitToScreen() {
   const main = $('mainArea');
   const pad = 48;
-  const bannerH = raceBanner && raceBanner.style.display !== 'none' ? raceBanner.offsetHeight : 0;
   const availW = main.clientWidth - pad;
-  const availH = main.clientHeight - pad - bannerH;
+  const availH = main.clientHeight - pad;
   const gridNat = CELL * puzzle.size;
   zoom   = Math.min(availW / gridNat, availH / gridNat);
   zoom   = Math.min(3, Math.max(0.1, zoom));
   cellPx = Math.round(CELL * zoom);
 
-  document.querySelectorAll('.zoom-btn').forEach(b => b.classList.remove('active'));
-  $('fitBtn').classList.add('active');
+  zoomLevelIdx = 0;
   resizeCanvas();
   drawAll();
-}
-
-// ─── Mobile menu ─────────────────────────────────────────────────────────────
-function closeMobileMenu() {
-  $('sidebar').classList.remove('open');
-  $('sidebarBackdrop').classList.remove('open');
 }
 
 // ─── Focus mode ──────────────────────────────────────────────────────────────
@@ -843,20 +863,15 @@ function exitFocus() {
 
 // ─── Drawing ─────────────────────────────────────────────────────────────────
 
-function drawGrid(cx, s, px, ox, oy, rects, clues, opts) {
+function drawGridBase(cx, s, px, ox, oy, dash, gridLw) {
   const W = px * s;
-  const dash = opts.dash || [3, 5];
-  const rectLw = opts.rectLw || 2;
-  const shadow = opts.shadow !== false;
-
   for (let r = 0; r < s; r++)
     for (let c = 0; c < s; c++) {
       cx.fillStyle = (r + c) % 2 === 0 ? COLOR.cellA : COLOR.cellB;
       cx.fillRect(ox + c * px, oy + r * px, px, px);
     }
-
   cx.strokeStyle = COLOR.gridDot;
-  cx.lineWidth = opts.gridLw || 1.5;
+  cx.lineWidth = gridLw;
   cx.setLineDash(dash);
   cx.lineDashOffset = 0;
   for (let i = 1; i < s; i++) {
@@ -867,6 +882,14 @@ function drawGrid(cx, s, px, ox, oy, rects, clues, opts) {
   }
   cx.setLineDash([]);
   cx.lineDashOffset = 0;
+}
+
+function drawGrid(cx, s, px, ox, oy, rects, clues, opts) {
+  const dash = opts.dash || [3, 5];
+  const rectLw = opts.rectLw || 2;
+  const shadow = opts.shadow !== false;
+
+  drawGridBase(cx, s, px, ox, oy, dash, opts.gridLw || 1.5);
 
   for (const rect of rects) {
     const m = opts.rectMargin || 2;
@@ -931,10 +954,8 @@ function drawFaces(cx, rects, px) {
     cx.lineCap = 'round';
     cx.beginPath();
     if (isValid) {
-      // Smile :)
       cx.arc(centerX, centerY + faceR * 0.08, mouthR, 0.15 * Math.PI, 0.85 * Math.PI);
     } else {
-      // Frown :(
       cx.arc(centerX, centerY + faceR * 0.42, mouthR, 1.15 * Math.PI, 1.85 * Math.PI);
     }
     cx.stroke();
@@ -947,24 +968,7 @@ function drawAll() {
   const W  = px * s;
 
   ctx.clearRect(0, 0, W, W);
-
-  for (let r = 0; r < s; r++)
-    for (let c = 0; c < s; c++) {
-      ctx.fillStyle = (r + c) % 2 === 0 ? COLOR.cellA : COLOR.cellB;
-      ctx.fillRect(c * px, r * px, px, px);
-    }
-  ctx.strokeStyle = COLOR.gridDot;
-  ctx.lineWidth = 1.5;
-  ctx.setLineDash([3, 5]);
-  ctx.lineDashOffset = 0;
-  for (let i = 1; i < s; i++) {
-    ctx.beginPath();
-    ctx.moveTo(i * px, 0); ctx.lineTo(i * px, W);
-    ctx.moveTo(0, i * px); ctx.lineTo(W, i * px);
-    ctx.stroke();
-  }
-  ctx.setLineDash([]);
-  ctx.lineDashOffset = 0;
+  drawGridBase(ctx, s, px, 0, 0, [3, 5], 1.5);
 
   const pulse = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(performance.now() / 260));
   for (const rect of userRects) {
@@ -1233,17 +1237,12 @@ function showWinFlash() {
 function startTimer() {
   timerStart = performance.now() - timerMs;
   const focusTimerEl = $('focusTimer');
-  const timerEl = $('timer');
+  const timerEl = $('topTimerDisplay');
   function tick() {
     timerMs = performance.now() - timerStart;
     const t = formatTime(timerMs);
     timerEl.textContent = t;
     focusTimerEl.textContent = t;
-    // Update race banner timer if active
-    if (raceActive && raceBanner) {
-      const raceTimerEl = raceBanner.querySelector('.race-timer');
-      if (raceTimerEl) raceTimerEl.textContent = t;
-    }
     timerRAF = requestAnimationFrame(tick);
   }
   timerRAF = requestAnimationFrame(tick);
@@ -1270,12 +1269,15 @@ function renderReplay() {
   const maxPx = 400;
   const rpx   = Math.min(maxPx, puzzle.size * CELL);
   const rCell = rpx / puzzle.size;
-  replayCanvas.width  = rpx;
-  replayCanvas.height = rpx;
+  const dpr   = window.devicePixelRatio || 1;
+
+  replayCanvas.width  = Math.round(rpx * dpr);
+  replayCanvas.height = Math.round(rpx * dpr);
   replayCanvas.style.display = 'block';
   statusEl.textContent = 'Generating replay...';
 
   const rctx = replayCanvas.getContext('2d');
+  rctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   const frames = [replayLog[0]];
   for (let i = 1; i < replayLog.length; i++) {
@@ -1328,10 +1330,12 @@ function shareAsImage() {
   const totalW = gridPx + pad * 2;
   const totalH = gridPx + pad * 2 + header + footer;
 
+  const dpr = window.devicePixelRatio || 1;
   const c = document.createElement('canvas');
-  c.width = totalW;
-  c.height = totalH;
+  c.width = Math.round(totalW * dpr);
+  c.height = Math.round(totalH * dpr);
   const cx = c.getContext('2d');
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   cx.fillStyle = '#0e1420';
   cx.fillRect(0, 0, totalW, totalH);
@@ -1380,13 +1384,11 @@ const RACE_STAGES = [
 ];
 
 let raceActive    = false;
-let raceStage     = -1;    // index of currently displayed board
+let raceStage     = -1;
 let raceSeed      = '';
 let raceTimes     = [];
-let raceBanner    = null;
 let raceSnapshots = [];
-let raceBoards    = [];    // per-stage state for non-linear play
-let raceReviewing   = false;
+let raceBoards    = [];
 let raceReviewIdx   = -1;
 let raceReviewSource = 'results';
 
@@ -1400,36 +1402,32 @@ function stageSeed(raceSeed, stageIdx) {
   return stage.size + '_' + String(hash % 1000000).padStart(6, '0');
 }
 
-function openRaceLobby() {
-  $('raceSeedInput').value = '';
-  $('raceLobbyModal').classList.remove('hidden');
-}
-
-function startRace() {
-  const inputSeed = $('raceSeedInput').value.trim();
-  $('raceLobbyModal').classList.add('hidden');
-  startRaceFromHome(inputSeed || undefined);
-}
-
 function abandonRace() {
   raceActive = false;
   raceStage = -1;
   raceTimes = [];
   raceSnapshots = [];
   raceBoards = [];
-  raceReviewing = false;
   raceReviewIdx = -1;
 
   stopTimer();
   stopAnim();
 
-  $('sizeSelect').disabled = false;
-  $('loadSeedBtn').disabled = false;
-  $('seedInput').disabled = false;
-  $('raceBtn').disabled = false;
+  // Reset tab state
+  $('difficultyTabs').classList.remove('race-mode');
+  resetTabLabels();
+  updateActiveDiffTab(currentSize);
+}
 
-  if (raceBanner) raceBanner.style.display = 'none';
-  $('gameView').classList.remove('race-active');
+function resetTabLabels() {
+  document.querySelectorAll('.diff-tab').forEach(tab => {
+    const size = parseInt(tab.dataset.size);
+    const stageIdx = RACE_STAGES.findIndex(s => s.size === size);
+    if (stageIdx === -1) return;
+    const label = RACE_STAGES[stageIdx].label;
+    tab.classList.remove('diff-tab-solved');
+    tab.innerHTML = `${label}<span class="diff-sub">${size}\u00d7${size}</span>`;
+  });
 }
 
 // ─── Non-linear race board management ────────────────────────────────────────
@@ -1440,7 +1438,6 @@ function initRaceBoards() {
     const seed = stageSeed(raceSeed, i);
     const p = generatePuzzle(stage.size, seed, activeGenerator);
 
-    // Auto-place 1x1 clues
     const rects = [];
     let ci = 0;
     const colors = getActiveColors();
@@ -1480,7 +1477,6 @@ function loadBoard(idx) {
   stopTimer();
   stopAnim();
 
-  // Save current board state before switching
   if (raceStage >= 0 && raceBoards[raceStage]) {
     saveCurrentBoard();
   }
@@ -1489,13 +1485,8 @@ function loadBoard(idx) {
   const board = raceBoards[idx];
   const stage = RACE_STAGES[idx];
 
-  // Set size dropdown for fitToScreen
-  const sel = $('sizeSelect');
-  for (const opt of sel.options) {
-    if (parseInt(opt.value, 10) === stage.size) { sel.value = opt.value; break; }
-  }
+  currentSize = stage.size;
 
-  // Restore board state to globals
   puzzle    = board.puzzle;
   userRects = board.userRects.map(r => ({ ...r }));
   history   = board.history;
@@ -1506,105 +1497,73 @@ function loadBoard(idx) {
   paused    = false;
   currentSeed = puzzle.seed;
 
-  // Rebuild owner from userRects
   owner = makeOwner(puzzle.size);
   rebuildOwner();
 
-  // Update timer display
   const t = formatTime(timerMs);
-  $('timer').textContent = t;
+  $('topTimerDisplay').textContent = t;
   $('focusTimer').textContent = t;
 
   resizeCanvas();
+  zoomLevelIdx = 0;
   fitToScreen();
+  updateZoomLabel();
 
-  if (solved) {
-    // Completed board — read-only view
-    const cover = $('coverScreen');
-    cover.classList.add('hidden');
-    cover.style.display = 'none';
-    $('pauseOverlay').classList.add('hidden');
-    $('pauseOverlay').style.display = 'none';
-    drawAll();
-  } else if (!board.started) {
-    // Not yet started — show cover screen
+  // Always hide pause overlay
+  $('pauseOverlay').classList.add('hidden');
+  $('pauseOverlay').style.display = 'none';
+
+  const cover = $('coverScreen');
+  if (!board.started && !solved) {
     $('coverSize').textContent = `Stage ${idx + 1}/5: ${stage.label} (${stage.size}×${stage.size})`;
     $('coverSeed').textContent = `Race seed: ${raceSeed}`;
-    const cover = $('coverScreen');
     cover.style.display = '';
     cover.classList.remove('hidden');
-    $('pauseOverlay').classList.add('hidden');
-    $('pauseOverlay').style.display = 'none';
-    drawAll();
   } else {
-    // In-progress board — resume timer
-    const cover = $('coverScreen');
     cover.classList.add('hidden');
     cover.style.display = 'none';
-    $('pauseOverlay').classList.add('hidden');
-    $('pauseOverlay').style.display = 'none';
-    drawAll();
+  }
+
+  drawAll();
+
+  if (!solved && board.started) {
     startTimer();
     if (userRects.some(r => getRectState(r) !== 'ok')) startAnim();
   }
 
-  updateRaceBanner();
+  updateRaceTabs();
 }
 
-function updateRaceBanner() {
-  if (!raceBanner) return;
-  const stage = RACE_STAGES[raceStage];
+function updateRaceTabs() {
+  // Update the difficulty tabs to reflect race stage progress
+  document.querySelectorAll('.diff-tab').forEach(tab => {
+    const size = parseInt(tab.dataset.size);
+    const stageIdx = RACE_STAGES.findIndex(s => s.size === size);
+    if (stageIdx === -1) return;
 
-  // Build stage tabs
-  let tabs = '';
-  for (let i = 0; i < RACE_STAGES.length; i++) {
-    const s = RACE_STAGES[i];
-    const board = raceBoards[i];
-    const isCurrent = i === raceStage;
+    const board = raceBoards[stageIdx];
+    const isCurrent = stageIdx === raceStage;
     const isSolved = board && board.solved;
+    const label = RACE_STAGES[stageIdx].label;
 
-    let cls = 'race-tab';
-    if (isCurrent) cls += ' race-tab-active';
-    if (isSolved) cls += ' race-tab-solved';
+    tab.classList.toggle('active', isCurrent);
+    tab.classList.toggle('diff-tab-solved', isSolved && !isCurrent);
 
-    const label = isSolved ? '\u2713' : (i + 1);
-    tabs += `<button class="${cls}" data-stage="${i}" title="${s.label} (${s.size}\u00d7${s.size})">${label}</button>`;
-  }
-
-  raceBanner.innerHTML =
-    `<span class="race-label">RACE</span>` +
-    `<div class="race-tabs">${tabs}</div>` +
-    `<span class="race-progress">${stage.label} (${stage.size}\u00d7${stage.size})</span>` +
-    `<span class="race-timer">${formatTime(timerMs)}</span>` +
-    `<div class="race-actions">` +
-      `<button class="btn btn-icon btn-sm" id="raceUndoBtn" title="Undo">&#x21A9;</button>` +
-      `<button class="btn btn-icon btn-sm" id="raceClearBtn" title="Clear">Clear</button>` +
-    `</div>` +
-    `<span style="color:var(--text-muted);font-size:0.75rem;">${raceSeed}</span>`;
-
-  // Wire up tab clicks
-  raceBanner.querySelectorAll('.race-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      const idx = parseInt(tab.dataset.stage);
-      if (idx !== raceStage) loadBoard(idx);
-    });
+    // Show checkmark on solved tabs
+    tab.innerHTML = isSolved && !isCurrent
+      ? `${label} \u2713<span class="diff-sub">${size}\u00d7${size}</span>`
+      : `${label}<span class="diff-sub">${size}\u00d7${size}</span>`;
   });
-
-  $('raceUndoBtn').addEventListener('click', undo);
-  $('raceClearBtn').addEventListener('click', clearAll);
 }
 
 function onRaceWin() {
-  // Save solved state to the board
   raceBoards[raceStage].timerMs = timerMs;
   raceBoards[raceStage].solved = true;
   raceBoards[raceStage].userRects = userRects.map(r => ({ ...r }));
 
-  // Check if all boards are solved
   const allSolved = raceBoards.every(b => b.solved);
 
   if (allSolved) {
-    // Populate raceTimes and raceSnapshots for results/history
     raceTimes = raceBoards.map(b => b.timerMs);
     raceSnapshots = raceBoards.map(b => ({
       puzzle: b.puzzle,
@@ -1613,19 +1572,15 @@ function onRaceWin() {
     raceActive = false;
     endRace();
   } else {
-    // Update banner to show the solved tab
-    updateRaceBanner();
+    updateRaceTabs();
   }
 }
 
 function endRace() {
-  // Restore normal controls
-  $('sizeSelect').disabled = false;
-  $('loadSeedBtn').disabled = false;
-  $('seedInput').disabled = false;
-  $('raceBtn').disabled = false;
-
-  if (raceBanner) raceBanner.style.display = 'none';
+  // Reset tab state
+  $('difficultyTabs').classList.remove('race-mode');
+  resetTabLabels();
+  updateActiveDiffTab(currentSize);
 
   // Build results
   const list = $('raceResultsList');
@@ -1648,7 +1603,6 @@ function endRace() {
     list.appendChild(row);
   }
 
-  // Wire up link copy buttons
   list.querySelectorAll('.race-link-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1671,16 +1625,12 @@ function endRace() {
 
 function viewRaceBoard(idx) {
   if (!raceSnapshots[idx]) return;
-  raceReviewing = true;
   raceReviewIdx = idx;
 
   const snap = raceSnapshots[idx];
   const stage = RACE_STAGES[idx];
 
-  const sel = $('sizeSelect');
-  for (const opt of sel.options) {
-    if (parseInt(opt.value, 10) === stage.size) { sel.value = opt.value; break; }
-  }
+  currentSize = stage.size;
 
   puzzle    = snap.puzzle;
   userRects = snap.userRects.map(r => ({ ...r }));
@@ -1690,56 +1640,73 @@ function viewRaceBoard(idx) {
   currentSeed = puzzle.seed;
 
   resizeCanvas();
+  zoomLevelIdx = 0;
   fitToScreen();
+  updateZoomLabel();
   drawAll();
 
   const cover = $('coverScreen');
   cover.classList.add('hidden');
   cover.style.display = 'none';
 
-  // Show review banner
-  if (!raceBanner) {
-    raceBanner = document.createElement('div');
-    raceBanner.className = 'race-banner';
-    raceBanner.id = 'raceBanner';
-    const main = $('mainArea');
-    main.insertBefore(raceBanner, main.firstChild);
-  }
-  raceBanner.style.display = '';
-  $('gameView').classList.add('race-active');
   $('gameView').classList.remove('hidden');
   $('homeScreen').classList.add('hidden');
-  updateReviewBanner();
+  updateReviewTabs();
 
   $('raceResultsModal').classList.add('hidden');
 }
 
-function updateReviewBanner() {
-  const stage = RACE_STAGES[raceReviewIdx];
-  const hasPrev = raceReviewIdx > 0;
-  const hasNext = raceReviewIdx < raceSnapshots.length - 1;
-  raceBanner.innerHTML =
-    `<button class="btn btn-icon btn-sm race-nav-btn" id="racePrev" ${hasPrev ? '' : 'disabled'}>&#x25C0;</button>` +
-    `<span class="race-label">REVIEW</span>` +
-    `<span class="race-progress">Stage ${raceReviewIdx + 1}/5: ${stage.label} (${stage.size}×${stage.size})</span>` +
-    `<span class="race-result-time">${formatTime(raceTimes[raceReviewIdx])}</span>` +
-    `<button class="btn btn-icon btn-sm race-nav-btn" id="raceNext" ${hasNext ? '' : 'disabled'}>&#x25B6;</button>` +
-    `<button class="btn btn-secondary btn-sm" id="raceExitReview">Done</button>`;
+function updateReviewTabs() {
+  const center = $('topBarCenter');
 
-  $('racePrev').addEventListener('click', () => {
-    if (raceReviewIdx > 0) viewRaceBoard(raceReviewIdx - 1);
+  // Highlight the reviewed stage tab, mark all as solved
+  document.querySelectorAll('.diff-tab').forEach(tab => {
+    const size = parseInt(tab.dataset.size);
+    const stageIdx = RACE_STAGES.findIndex(s => s.size === size);
+    if (stageIdx === -1) return;
+
+    const isCurrent = stageIdx === raceReviewIdx;
+    const label = RACE_STAGES[stageIdx].label;
+
+    tab.classList.toggle('active', isCurrent);
+    tab.classList.remove('diff-tab-solved');
+    tab.innerHTML = `${label}<span class="diff-sub">${size}\u00d7${size}</span>`;
   });
-  $('raceNext').addEventListener('click', () => {
-    if (raceReviewIdx < raceSnapshots.length - 1) viewRaceBoard(raceReviewIdx + 1);
-  });
-  $('raceExitReview').addEventListener('click', exitRaceReview);
+
+  // Add review badge and Done button if not already present
+  let badge = center.querySelector('.top-review-badge');
+  if (!badge) {
+    badge = document.createElement('span');
+    badge.className = 'top-review-badge';
+    badge.textContent = 'REVIEW';
+    center.appendChild(badge);
+  }
+
+  let exitBtn = center.querySelector('#raceExitReview');
+  if (!exitBtn) {
+    exitBtn = document.createElement('button');
+    exitBtn.id = 'raceExitReview';
+    exitBtn.className = 'btn btn-secondary btn-sm';
+    exitBtn.textContent = 'Done';
+    exitBtn.style.marginLeft = '6px';
+    exitBtn.addEventListener('click', exitRaceReview);
+    center.appendChild(exitBtn);
+  }
 }
 
 function exitRaceReview() {
-  raceReviewing = false;
   raceReviewIdx = -1;
-  if (raceBanner) raceBanner.style.display = 'none';
-  $('gameView').classList.remove('race-active');
+
+  // Clean up review UI
+  const center = $('topBarCenter');
+  const badge = center.querySelector('.top-review-badge');
+  if (badge) badge.remove();
+  const exitBtn = center.querySelector('#raceExitReview');
+  if (exitBtn) exitBtn.remove();
+
+  resetTabLabels();
+  updateActiveDiffTab(currentSize);
+
   if (raceReviewSource === 'history') {
     openRaceHistory();
   } else {
