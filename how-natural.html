@@ -29,7 +29,7 @@
 </head>
 <body>
 
-<p><a href="how-generation-works.html">&larr; All generators</a></p>
+<p><a href="index.html">&larr; Back to game</a></p>
 
 <h1>Natural Generator</h1>
 <p class="subtitle">Recursive guillotine cuts with heavy-tailed size distribution. <strong>Default generator.</strong></p>
@@ -169,21 +169,78 @@ strips when cuts land near an edge, adding visual variety.</p>
 
 <div class="note">
 <strong>Guillotine constraint:</strong> Because every cut spans the full width or height of its
-parent rectangle, the resulting partition always has the guillotine-cut property. The Irregular
-and Anchor-Grow generators avoid this if you want non-guillotine layouts.
+parent rectangle, the resulting partition always has the guillotine-cut property.
 </div>
 
 <hr>
 
 <p class="dim" style="text-align:center; margin-top: 40px;">
-  <a href="how-generation-works.html">&larr; All generators</a> &nbsp;&middot;&nbsp;
   <a href="index.html">Back to game</a>
 </p>
 
 <script src="generator.js"></script>
-<script src="board-preview.js"></script>
 <script>
-renderBoardSet('examples', 15, 'natural', ['15_000001', '15_000002', '15_000003']);
+// Inline board preview rendering
+(function() {
+  const container = document.getElementById('examples');
+  const seeds = ['15_000001', '15_000002', '15_000003'];
+  const size = 15;
+  const CELL_PX = 20;
+  const px = size * CELL_PX;
+
+  const COLORS = [
+    { fill: 'rgba(255,210,70,0.82)',  stroke: '#ffd246' },
+    { fill: 'rgba(110,215,130,0.82)', stroke: '#6ed782' },
+    { fill: 'rgba(130,190,255,0.82)', stroke: '#82beff' },
+    { fill: 'rgba(255,150,170,0.82)', stroke: '#ff96aa' },
+    { fill: 'rgba(200,165,255,0.82)', stroke: '#c8a5ff' },
+    { fill: 'rgba(255,175,90,0.82)',  stroke: '#ffaf5a' },
+    { fill: 'rgba(140,230,210,0.82)', stroke: '#8ce6d2' },
+    { fill: 'rgba(255,215,150,0.82)', stroke: '#ffd796' },
+  ];
+
+  for (const seed of seeds) {
+    const puzzle = generatePuzzle(size, seed);
+    const div = document.createElement('div');
+    div.className = 'board-example';
+    const c = document.createElement('canvas');
+    c.width = px; c.height = px;
+    c.style.width = px + 'px'; c.style.height = px + 'px';
+    const cx = c.getContext('2d');
+
+    // Draw checkerboard
+    for (let r = 0; r < size; r++)
+      for (let col = 0; col < size; col++) {
+        cx.fillStyle = (r + col) % 2 === 0 ? '#1a2840' : '#192538';
+        cx.fillRect(col * CELL_PX, r * CELL_PX, CELL_PX, CELL_PX);
+      }
+
+    // Draw solution rects
+    puzzle.clues.forEach((cl, i) => {
+      const color = COLORS[i % COLORS.length];
+      const m = 1.5;
+      cx.fillStyle = color.fill;
+      cx.fillRect(cl.c * CELL_PX + m, cl.r * CELL_PX + m, cl.w * CELL_PX - m * 2, cl.h * CELL_PX - m * 2);
+      cx.strokeStyle = color.stroke;
+      cx.lineWidth = 1.5;
+      cx.strokeRect(cl.c * CELL_PX + m, cl.r * CELL_PX + m, cl.w * CELL_PX - m * 2, cl.h * CELL_PX - m * 2);
+    });
+
+    // Draw clue numbers
+    const fontSize = Math.round(CELL_PX * 0.38);
+    cx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
+    cx.textAlign = 'center';
+    cx.textBaseline = 'middle';
+    for (const cl of puzzle.clues) {
+      cx.fillStyle = '#fff';
+      cx.fillText(String(cl.area), (cl.numC + 0.5) * CELL_PX, (cl.numR + 0.5) * CELL_PX);
+    }
+
+    div.appendChild(c);
+    div.innerHTML += `<div class="board-info"><span class="board-seed">${seed}</span><span class="board-stats">${puzzle.clues.length} rectangles</span></div>`;
+    container.appendChild(div);
+  }
+})();
 </script>
 </body>
 </html>

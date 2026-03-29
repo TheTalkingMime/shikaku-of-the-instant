@@ -10,101 +10,16 @@ const COLOR = {
   dragStroke: 'rgba(255,255,255,0.6)',
 };
 
-// ─── Color palettes ──────────────────────────────────────────────────────────
-const PALETTES = {
-  classic: {
-    name: 'Classic',
-    colors: [
-      { fill: 'rgba(91,143,212,0.72)',  stroke: '#7aaee8' },
-      { fill: 'rgba(210,130,55,0.75)',  stroke: '#e8a060' },
-      { fill: 'rgba(175,65,65,0.75)',   stroke: '#e07070' },
-      { fill: 'rgba(130,75,185,0.75)',  stroke: '#b088e0' },
-      { fill: 'rgba(80,155,65,0.75)',   stroke: '#80cc60' },
-      { fill: 'rgba(175,160,45,0.75)',  stroke: '#d4c445' },
-      { fill: 'rgba(55,160,160,0.75)',  stroke: '#55d0d0' },
-      { fill: 'rgba(185,75,130,0.75)',  stroke: '#e080b8' },
-    ],
-  },
-  pastel: {
-    name: 'Pastel',
-    colors: [
-      { fill: 'rgba(150,190,230,0.65)', stroke: '#a8c8e8' },
-      { fill: 'rgba(230,180,140,0.65)', stroke: '#e8c8a0' },
-      { fill: 'rgba(220,150,150,0.65)', stroke: '#e8b0b0' },
-      { fill: 'rgba(180,160,220,0.65)', stroke: '#c8b8e0' },
-      { fill: 'rgba(150,210,150,0.65)', stroke: '#a8d8a8' },
-      { fill: 'rgba(220,215,140,0.65)', stroke: '#d8d8a0' },
-      { fill: 'rgba(140,210,210,0.65)', stroke: '#a0d8d8' },
-      { fill: 'rgba(220,160,190,0.65)', stroke: '#e0b0c8' },
-    ],
-  },
-  neon: {
-    name: 'Neon',
-    colors: [
-      { fill: 'rgba(0,150,255,0.7)',    stroke: '#00bbff' },
-      { fill: 'rgba(255,100,0,0.7)',    stroke: '#ff8800' },
-      { fill: 'rgba(255,30,80,0.7)',    stroke: '#ff4466' },
-      { fill: 'rgba(180,0,255,0.7)',    stroke: '#bb44ff' },
-      { fill: 'rgba(0,230,80,0.7)',     stroke: '#22ee66' },
-      { fill: 'rgba(240,230,0,0.7)',    stroke: '#eedd00' },
-      { fill: 'rgba(0,220,220,0.7)',    stroke: '#00eeee' },
-      { fill: 'rgba(255,50,180,0.7)',   stroke: '#ff55bb' },
-    ],
-  },
-  earth: {
-    name: 'Earth',
-    colors: [
-      { fill: 'rgba(140,110,80,0.72)',  stroke: '#b09070' },
-      { fill: 'rgba(100,130,80,0.72)',  stroke: '#88aa68' },
-      { fill: 'rgba(160,90,70,0.72)',   stroke: '#c07858' },
-      { fill: 'rgba(90,120,140,0.72)',  stroke: '#7098b0' },
-      { fill: 'rgba(170,150,90,0.72)',  stroke: '#c8b868' },
-      { fill: 'rgba(120,90,110,0.72)',  stroke: '#987088' },
-      { fill: 'rgba(80,140,120,0.72)',  stroke: '#60b098' },
-      { fill: 'rgba(155,120,100,0.72)', stroke: '#c09878' },
-    ],
-  },
-  ocean: {
-    name: 'Ocean',
-    colors: [
-      { fill: 'rgba(30,100,180,0.72)',  stroke: '#3388cc' },
-      { fill: 'rgba(20,140,160,0.72)',  stroke: '#28aabb' },
-      { fill: 'rgba(60,160,200,0.72)',  stroke: '#55bbdd' },
-      { fill: 'rgba(40,80,140,0.72)',   stroke: '#4477aa' },
-      { fill: 'rgba(80,180,180,0.72)',  stroke: '#66cccc' },
-      { fill: 'rgba(100,140,200,0.72)', stroke: '#88aadd' },
-      { fill: 'rgba(50,120,130,0.72)',  stroke: '#448899' },
-      { fill: 'rgba(70,200,170,0.72)',  stroke: '#55ddbb' },
-    ],
-  },
-  sunset: {
-    name: 'Sunset',
-    colors: [
-      { fill: 'rgba(220,80,50,0.72)',   stroke: '#ee6644' },
-      { fill: 'rgba(240,150,40,0.72)',  stroke: '#ffaa33' },
-      { fill: 'rgba(200,50,90,0.72)',   stroke: '#dd4477' },
-      { fill: 'rgba(250,200,50,0.72)',  stroke: '#ffcc44' },
-      { fill: 'rgba(180,60,120,0.72)',  stroke: '#cc5588' },
-      { fill: 'rgba(230,120,60,0.72)',  stroke: '#ee8844' },
-      { fill: 'rgba(160,40,70,0.72)',   stroke: '#bb3355' },
-      { fill: 'rgba(245,180,80,0.72)', stroke: '#ffbb55' },
-    ],
-  },
-  happy: {
-    name: 'Happy Rectangles',
-    faces: true,
-    colors: [
-      { fill: 'rgba(255,210,70,0.82)',  stroke: '#ffd246' },
-      { fill: 'rgba(110,215,130,0.82)', stroke: '#6ed782' },
-      { fill: 'rgba(130,190,255,0.82)', stroke: '#82beff' },
-      { fill: 'rgba(255,150,170,0.82)', stroke: '#ff96aa' },
-      { fill: 'rgba(200,165,255,0.82)', stroke: '#c8a5ff' },
-      { fill: 'rgba(255,175,90,0.82)',  stroke: '#ffaf5a' },
-      { fill: 'rgba(140,230,210,0.82)', stroke: '#8ce6d2' },
-      { fill: 'rgba(255,215,150,0.82)', stroke: '#ffd796' },
-    ],
-  },
-};
+const RECT_COLORS = [
+  { fill: 'rgba(255,210,70,0.82)',  stroke: '#ffd246' },
+  { fill: 'rgba(110,215,130,0.82)', stroke: '#6ed782' },
+  { fill: 'rgba(130,190,255,0.82)', stroke: '#82beff' },
+  { fill: 'rgba(255,150,170,0.82)', stroke: '#ff96aa' },
+  { fill: 'rgba(200,165,255,0.82)', stroke: '#c8a5ff' },
+  { fill: 'rgba(255,175,90,0.82)',  stroke: '#ffaf5a' },
+  { fill: 'rgba(140,230,210,0.82)', stroke: '#8ce6d2' },
+  { fill: 'rgba(255,215,150,0.82)', stroke: '#ffd796' },
+];
 
 const SIZE_LABELS = {
   5: 'Easy', 10: 'Medium', 20: 'Hard', 30: 'Expert', 40: 'Master',
@@ -113,37 +28,48 @@ const SIZE_LABELS = {
 const ZOOM_LEVELS = ['fit', 1, 1.25, 1.5, 2];
 
 // ─── State ───────────────────────────────────────────────────────────────────
+
+// Game state
 let puzzle    = null;
 let userRects = [];
 let owner     = null;
+let history   = [];
+let replayLog = [];
+let currentSeed = '';
+let currentSize = 20;
+let solved     = false;
+let paused     = false;
+let _colorIdx  = 0;
+
+// View state
 let zoom      = 1;
 let cellPx    = CELL;
+let zoomLevelIdx = 0;
+let viewMode = 'home';  // 'home' | 'freeplay' | 'race'
+let canvas, ctx;
 
+// Timer state
 let timerStart = null;
 let timerMs    = 0;
 let timerRAF   = null;
-let solved     = false;
-let paused     = false;
 
+// Drag state
 let dragging  = false;
 let dragStart = null;
 let dragEnd   = null;
 
-let history   = [];
+// Animation state
 let animRAF   = null;
-let currentSeed = '';
-let replayLog = [];
-let _colorIdx = 0;
 
-let activePalette = 'happy';
-let activeGenerator = 'natural';
-let canvas, ctx;
-
-let currentSize = 20;
-let zoomLevelIdx = 0;
-
-// ─── View mode: 'home' | 'freeplay' | 'race' ────────────────────────────────
-let viewMode = 'home';
+// Replay state (full-board playback)
+let replayActive = false;
+let replayTimer  = null;
+let replayFrames = null;
+let replayFrame  = 0;
+let replayPuzzle = null;
+let replayCallback = null;  // called when replay is stopped
+let winReplayLog = null;    // stored after win for "Watch Replay" button
+let winReplayPuzzle = null;
 
 // ─── Stats / Personal Bests ──────────────────────────────────────────────────
 function loadStats() {
@@ -201,6 +127,7 @@ function refreshInstantSeed() {
 // ─── Home Screen ─────────────────────────────────────────────────────────────
 function showHomeScreen() {
   viewMode = 'home';
+  if (replayActive) { replayCallback = null; stopFullReplay(); }
   $('homeScreen').classList.remove('hidden');
   $('gameView').classList.add('hidden');
   stopTimer();
@@ -254,7 +181,7 @@ function renderRecentRaces() {
       const st = race.stages[s];
       const hasReplay = st.replayLog && st.replayLog.length >= 2;
       html += `<div class="race-result-row race-result-clickable race-history-stage" data-race="${h}" data-stage="${s}">`;
-      html += `<span class="race-result-name">${st.label} (${st.size}×${st.size})</span>`;
+      html += `<span class="race-result-name">${st.label}</span>`;
       html += `<span class="race-result-time">${formatTime(st.timeMs)}</span>`;
       if (hasReplay) html += `<button class="btn btn-secondary btn-sm race-replay-btn" data-race="${h}" data-stage="${s}" title="Replay">\u25B6</button>`;
       html += `</div>`;
@@ -267,8 +194,20 @@ function renderRecentRaces() {
     header.addEventListener('click', () => {
       const idx = header.dataset.race;
       const stages = $('homeRaceStages_' + idx);
-      stages.classList.toggle('hidden');
-      header.classList.toggle('expanded');
+      const wasExpanded = header.classList.contains('expanded');
+
+      // Collapse all others first (accordion)
+      container.querySelectorAll('.race-history-header.expanded').forEach(h => {
+        h.classList.remove('expanded');
+        const s = $('homeRaceStages_' + h.dataset.race);
+        if (s) s.classList.add('hidden');
+      });
+
+      // Toggle the clicked one
+      if (!wasExpanded) {
+        stages.classList.remove('hidden');
+        header.classList.add('expanded');
+      }
     });
   });
 
@@ -358,12 +297,6 @@ window.addEventListener('DOMContentLoaded', () => {
   canvas = $('gameCanvas');
   ctx    = canvas.getContext('2d');
 
-  // Load saved settings
-  const savedPal = localStorage.getItem('shikaku_palette');
-  if (savedPal && PALETTES[savedPal]) activePalette = savedPal;
-  const savedGen = localStorage.getItem('shikaku_generator');
-  if (savedGen && GENERATORS[savedGen]) activeGenerator = savedGen;
-
   // --- Top bar buttons ---
 
   // Home button
@@ -425,9 +358,6 @@ window.addEventListener('DOMContentLoaded', () => {
     applyZoom();
   });
 
-  // Settings
-  $('topSettingsBtn').addEventListener('click', openSettings);
-
   // --- Copy buttons ---
   $('copySeedBtn').addEventListener('click', () => {
     navigator.clipboard.writeText(currentSeed).then(() => {
@@ -451,9 +381,20 @@ window.addEventListener('DOMContentLoaded', () => {
     prepareNewGame();
   });
   $('shareImageBtn').addEventListener('click', shareAsImage);
-
-  $('closeSettings').addEventListener('click', () => $('settingsModal').classList.add('hidden'));
-  $('closeReplayModal').addEventListener('click', closeRaceReplay);
+  $('watchReplayBtn').addEventListener('click', () => {
+    if (!winReplayLog || winReplayLog.length < 2) return;
+    $('winModal').classList.add('hidden');
+    const savedPuzzle = winReplayPuzzle;
+    const savedRects = userRects.map(r => ({ ...r }));
+    startFullReplay(savedPuzzle, winReplayLog, () => {
+      // Restore solved board state when replay stops
+      puzzle = savedPuzzle;
+      userRects = savedRects;
+      rebuildOwner();
+      solved = true;
+      drawAll();
+    });
+  });
 
   $('closeStats').addEventListener('click', () => $('statsModal').classList.add('hidden'));
   $('resetStats').addEventListener('click', () => {
@@ -472,6 +413,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Focus mode (keyboard shortcut only now - F key)
   $('focusExit').addEventListener('click', exitFocus);
   document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && replayActive) { stopFullReplay(); return; }
     if (e.key === 'Escape' && document.body.classList.contains('focus-mode')) exitFocus();
     if (e.key === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey && viewMode !== 'home' && document.activeElement === document.body) {
       if (document.body.classList.contains('focus-mode')) exitFocus();
@@ -520,7 +462,6 @@ window.addEventListener('DOMContentLoaded', () => {
     prepareNewGame();
   });
   $('homeStatsBtn').addEventListener('click', openStats);
-  $('homeSettingsBtn').addEventListener('click', openSettings);
   $('homeHelpBtn').addEventListener('click', () => $('howToModal').classList.remove('hidden'));
 
   // --- Mouse events ---
@@ -535,7 +476,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   canvas.addEventListener('touchstart', e => {
     e.preventDefault();
-    if (solved) return;
+    if (solved || replayActive) return;
     const cell = getCell(e.touches[0].clientX, e.touches[0].clientY);
     if (!cell) return;
     touchCell = cell;
@@ -568,16 +509,75 @@ window.addEventListener('DOMContentLoaded', () => {
     if (zoomLevelIdx === 0 && puzzle) fitToScreen();
   });
 
-  // --- URL seed sharing: check for seed in hash ---
-  const hashSeed = window.location.hash.replace(/^#seed=/, '');
-  if (hashSeed && hashSeed.includes('_')) {
-    showGameView('freeplay');
-    prepareNewGame(hashSeed);
-    updateActiveDiffTab(currentSize);
+  // --- URL hash routing ---
+  const hash = window.location.hash.slice(1);
+  if (hash.startsWith('preview=')) {
+    showHomeScreen();
+    openPreview(hash.replace('preview=', ''));
+  } else if (hash.startsWith('seed=')) {
+    const hashSeed = hash.replace('seed=', '');
+    if (hashSeed.includes('_')) {
+      showGameView('freeplay');
+      prepareNewGame(hashSeed);
+      updateActiveDiffTab(currentSize);
+    } else {
+      showHomeScreen();
+    }
   } else {
     showHomeScreen();
   }
 });
+
+// ─── Dev preview mode ─────────────────────────────────────────────────────────
+function openPreview(name) {
+  const modals = {
+    'how':      'howToModal',
+    'win':      'winModal',
+    'race':     'raceResultsModal',
+    'stats':    'statsModal',
+  };
+  const id = modals[name];
+  if (!id) { console.warn('Unknown preview:', name); return; }
+
+  // Populate mock data for modals that need it
+  if (name === 'race') populateRacePreview();
+  if (name === 'win') populateWinPreview();
+  if (name === 'stats') populateStatsPreview();
+
+  $(id).classList.remove('hidden');
+}
+
+function populateRacePreview() {
+  const mockTimes = [5910, 11340, 82590, 65880, 192440];
+  const list = $('raceResultsList');
+  list.innerHTML = '';
+  let total = 0;
+  for (let i = 0; i < RACE_STAGES.length; i++) {
+    total += mockTimes[i];
+    const row = document.createElement('div');
+    row.className = 'race-result-row race-result-clickable';
+    row.innerHTML =
+      `<span class="race-result-name">${RACE_STAGES[i].label}</span>` +
+      `<span class="race-result-time">${formatTime(mockTimes[i])}</span>` +
+      `<button class="btn btn-secondary btn-sm race-action-btn race-replay-btn" title="Replay">\u25B6</button>` +
+      `<button class="btn btn-secondary btn-sm race-action-btn race-link-btn" title="Copy link">&#x1F517;</button>`;
+    list.appendChild(row);
+  }
+  $('raceTotalTime').textContent = `Total: ${formatTime(total)}`;
+  $('raceSeedDisplay').textContent = 'T1774739853';
+}
+
+function populateWinPreview() {
+  const win = $('winModal');
+  const h2 = win.querySelector('h2');
+  if (h2) h2.textContent = 'Solved!';
+  const time = win.querySelector('.win-time');
+  if (time) time.textContent = '00:42.15';
+}
+
+function populateStatsPreview() {
+  openStats();
+}
 
 // ─── Start race from home screen ─────────────────────────────────────────────
 function startRaceFromHome(seed) {
@@ -620,7 +620,7 @@ function prepareNewGame(seedStr) {
     }
   }
   const size = currentSize;
-  puzzle      = generatePuzzle(size, seedStr || undefined, activeGenerator);
+  puzzle      = generatePuzzle(size, seedStr || undefined);
   currentSeed = puzzle.seed;
   userRects   = [];
   history     = [];
@@ -710,13 +710,8 @@ function togglePause() {
 }
 
 // ─── Rect color cycling ──────────────────────────────────────────────────────
-function getActiveColors() {
-  return PALETTES[activePalette].colors;
-}
-
 function nextRectColor() {
-  const colors = getActiveColors();
-  return colors[_colorIdx++ % colors.length];
+  return RECT_COLORS[_colorIdx++ % RECT_COLORS.length];
 }
 
 // ─── Statistics ──────────────────────────────────────────────────────────────
@@ -760,75 +755,6 @@ function openStats() {
   html += '</tbody></table>';
   content.innerHTML = html;
   $('statsModal').classList.remove('hidden');
-}
-
-// ─── Settings ────────────────────────────────────────────────────────────────
-function openSettings() {
-  // --- Palette picker ---
-  const list = $('paletteList');
-  list.innerHTML = '';
-  for (const [key, pal] of Object.entries(PALETTES)) {
-    const opt = document.createElement('div');
-    opt.className = 'palette-option' + (key === activePalette ? ' active' : '');
-    const name = document.createElement('span');
-    name.className = 'palette-name';
-    name.textContent = pal.name;
-    const swatches = document.createElement('div');
-    swatches.className = 'palette-swatches';
-    for (const c of pal.colors) {
-      const s = document.createElement('div');
-      s.className = 'palette-swatch';
-      s.style.background = c.fill;
-      s.style.borderColor = c.stroke;
-      swatches.appendChild(s);
-    }
-    opt.appendChild(name);
-    opt.appendChild(swatches);
-    opt.addEventListener('click', () => {
-      activePalette = key;
-      localStorage.setItem('shikaku_palette', key);
-      list.querySelectorAll('.palette-option').forEach(o => o.classList.remove('active'));
-      opt.classList.add('active');
-      if (puzzle) { recolorRects(); drawAll(); }
-    });
-    list.appendChild(opt);
-  }
-
-  // --- Generator picker ---
-  const genList = $('generatorList');
-  genList.innerHTML = '';
-  for (const [key, gen] of Object.entries(GENERATORS)) {
-    const opt = document.createElement('div');
-    opt.className = 'palette-option' + (key === activeGenerator ? ' active' : '');
-    const name = document.createElement('span');
-    name.className = 'palette-name';
-    name.textContent = gen.name;
-    const desc = document.createElement('span');
-    desc.className = 'generator-desc';
-    desc.textContent = gen.desc;
-    opt.appendChild(name);
-    opt.appendChild(desc);
-    opt.addEventListener('click', () => {
-      if (key === activeGenerator) return;
-      activeGenerator = key;
-      localStorage.setItem('shikaku_generator', key);
-      genList.querySelectorAll('.palette-option').forEach(o => o.classList.remove('active'));
-      opt.classList.add('active');
-      if (viewMode === 'freeplay') prepareNewGame();
-    });
-    genList.appendChild(opt);
-  }
-
-  $('settingsModal').classList.remove('hidden');
-}
-
-function recolorRects() {
-  const colors = getActiveColors();
-  for (let i = 0; i < userRects.length; i++) {
-    const c = colors[i % colors.length];
-    userRects[i].fill = c.fill;
-    userRects[i].stroke = c.stroke;
-  }
 }
 
 // ─── Invalid-rect animation ─────────────────────────────────────────────────
@@ -1040,10 +966,7 @@ function drawAll() {
     if (invalid) ctx.globalAlpha = 1;
   }
 
-  // Happy Rectangles faces
-  if (PALETTES[activePalette].faces) {
-    drawFaces(ctx, userRects, px);
-  }
+  drawFaces(ctx, userRects, px);
 
   if (dragging && dragStart && dragEnd) {
     const dr = dragRect();
@@ -1142,7 +1065,7 @@ function getCellClamped(clientX, clientY) {
 }
 
 function onMouseDown(e) {
-  if (e.button !== 0 || paused || solved) return;
+  if (e.button !== 0 || paused || solved || replayActive) return;
   const cell = getCell(e.clientX, e.clientY);
   if (!cell) return;
   dragging  = true;
@@ -1169,7 +1092,7 @@ function onMouseUp(e) {
 
 function onRightClick(e) {
   e.preventDefault();
-  if (paused || solved) return;
+  if (paused || solved || replayActive) return;
   if (dragging) {
     dragging  = false;
     dragStart = null;
@@ -1223,7 +1146,7 @@ function removeRectAt(r, c) {
 }
 
 function clearAll() {
-  if (solved || userRects.length === 0) return;
+  if (solved || replayActive || userRects.length === 0) return;
   history.push({ type: 'clearAll', rects: [...userRects] });
   userRects = [];
   rebuildOwner();
@@ -1233,7 +1156,7 @@ function clearAll() {
 }
 
 function undo() {
-  if (solved || history.length === 0) return;
+  if (solved || replayActive || history.length === 0) return;
   const action = history.pop();
   if (action.type === 'add') {
     userRects.pop();
@@ -1274,9 +1197,11 @@ function checkWin() {
   else if (best !== null) winText += `  (Best: ${formatTime(best)})`;
   $('winTime').textContent = winText;
   $('seedDisplay').textContent = currentSeed;
+  // Store replay data for the watch button
+  winReplayLog = replayLog.slice();
+  winReplayPuzzle = puzzle;
   setTimeout(() => {
     $('winModal').classList.remove('hidden');
-    renderReplay();
   }, 600);
 }
 
@@ -1346,69 +1271,161 @@ function compactReplayLog(log) {
 
 // Re-apply colors to a compact replay log
 function recolorReplayLog(log) {
-  const colors = getActiveColors();
   return log.map(frame =>
-    frame.map((r, i) => ({ ...r, ...colors[i % colors.length] }))
+    frame.map((r, i) => ({ ...r, ...RECT_COLORS[i % RECT_COLORS.length] }))
   );
 }
 
-function renderReplay() {
-  const replayCanvas = $('replayCanvas');
-  const statusEl     = $('replayStatus');
+// ─── Full-board replay system ─────────────────────────────────────────────────
+function dedupeFrames(log) {
+  const frames = [log[0]];
+  for (let i = 1; i < log.length; i++) {
+    if (JSON.stringify(log[i]) !== JSON.stringify(log[i - 1]))
+      frames.push(log[i]);
+  }
+  return frames;
+}
 
-  if (replayLog.length < 2) return;
+function startFullReplay(p, log, onStop) {
+  if (replayActive) stopFullReplay();
 
-  const maxPx = 800;
-  const rpx   = Math.min(maxPx, puzzle.size * CELL);
-  const rCell = rpx / puzzle.size;
-  const dpr   = window.devicePixelRatio || 1;
-
-  replayCanvas.width  = Math.round(rpx * dpr);
-  replayCanvas.height = Math.round(rpx * dpr);
-  replayCanvas.style.display = 'block';
-  statusEl.textContent = 'Generating replay...';
-
-  const rctx = replayCanvas.getContext('2d');
-  rctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-  const frames = [replayLog[0]];
-  for (let i = 1; i < replayLog.length; i++) {
-    if (JSON.stringify(replayLog[i]) !== JSON.stringify(replayLog[i - 1]))
-      frames.push(replayLog[i]);
+  // Re-colorize if needed (stored replays strip colors)
+  const firstNonEmpty = log.find(f => f.length > 0);
+  if (firstNonEmpty && !firstNonEmpty[0].fill) {
+    log = recolorReplayLog(log);
   }
 
+  const frames = dedupeFrames(log);
+  if (frames.length < 2) return;
+
+  // Set up the main canvas for this puzzle
+  replayPuzzle = p;
+  replayFrames = frames;
+  replayFrame = 0;
+  replayActive = true;
+  replayCallback = onStop || null;
+
+  puzzle = p;
+  currentSize = p.size;
+
+  // Make sure game view is showing
+  $('homeScreen').classList.add('hidden');
+  $('gameView').classList.remove('hidden');
+
+  // Hide cover/pause overlays
+  const cover = $('coverScreen');
+  cover.classList.add('hidden');
+  cover.style.display = 'none';
+  $('pauseOverlay').classList.add('hidden');
+  $('pauseOverlay').style.display = 'none';
+
+  // Size canvas
+  resizeCanvas();
+  zoomLevelIdx = 0;
+  fitToScreen();
+  updateZoomLabel();
+
+  // Show replay overlay bar
+  showReplayBar();
+
+  // Calculate timing
   const totalMs = Math.min(10000, Math.max(5000, frames.length * 200));
   const delayMs = Math.max(50, Math.round(totalMs / frames.length));
   const lastDelay = 2000;
 
-  function drawFrame(rectsSnap) {
-    rctx.clearRect(0, 0, rpx, rpx);
-    drawGrid(rctx, puzzle.size, rCell, 0, 0, rectsSnap, puzzle.clues,
-      { dash: [2, 4], gridLw: 1, rectLw: 1.5, rectMargin: 1, shadow: false });
+  function drawReplayFrame(rectsSnap) {
+    const s = p.size;
+    const px = cellPx;
+    const W = px * s;
+
+    ctx.clearRect(0, 0, W, W);
+    drawGridBase(ctx, s, px, 0, 0, [3, 5], 1.5);
+
+    for (const rect of rectsSnap) {
+      const m = 2;
+      ctx.beginPath();
+      ctx.rect(rect.c * px + m, rect.r * px + m, rect.w * px - m * 2, rect.h * px - m * 2);
+      ctx.fillStyle = rect.fill;
+      ctx.fill();
+      ctx.strokeStyle = rect.stroke;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    }
+
+    drawFaces(ctx, rectsSnap.filter(r => getRectStateForPuzzle(r, p) === 'ok'), px);
+
+    const fontSize = Math.max(9, Math.round(px * 0.38));
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
+    for (const clue of p.clues) {
+      const cx_ = (clue.numC + 0.5) * px;
+      const cy_ = (clue.numR + 0.5) * px;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillText(String(clue.area), cx_ + 1, cy_ + 1);
+      ctx.fillStyle = COLOR.num;
+      ctx.fillText(String(clue.area), cx_, cy_);
+    }
+
+    // Update progress bar
+    const bar = $('replayProgress');
+    if (bar) bar.style.width = Math.round((replayFrame / (frames.length - 1)) * 100) + '%';
   }
 
-  let frame = 0;
-  let replayTimer = null;
-  statusEl.textContent = '';
-
   function animate() {
-    drawFrame(frames[frame]);
-    frame++;
-    if (frame >= frames.length) {
-      replayTimer = setTimeout(() => { frame = 0; animate(); }, lastDelay);
+    if (!replayActive) return;
+    drawReplayFrame(frames[replayFrame]);
+    replayFrame++;
+    if (replayFrame >= frames.length) {
+      replayTimer = setTimeout(() => { replayFrame = 0; animate(); }, lastDelay);
     } else {
       replayTimer = setTimeout(animate, delayMs);
     }
   }
   animate();
+}
 
-  const observer = new MutationObserver(() => {
-    if ($('winModal').classList.contains('hidden')) {
-      clearTimeout(replayTimer);
-      observer.disconnect();
-    }
-  });
-  observer.observe($('winModal'), { attributes: true, attributeFilter: ['class'] });
+function getRectStateForPuzzle(rect, p) {
+  const cluesInside = p.clues.filter(cl =>
+    cl.numR >= rect.r && cl.numR < rect.r + rect.h &&
+    cl.numC >= rect.c && cl.numC < rect.c + rect.w
+  );
+  if (cluesInside.length !== 1) return 'err';
+  return rect.w * rect.h === cluesInside[0].area ? 'ok' : 'err';
+}
+
+function stopFullReplay() {
+  if (!replayActive) return;
+  replayActive = false;
+  if (replayTimer) { clearTimeout(replayTimer); replayTimer = null; }
+  hideReplayBar();
+  const cb = replayCallback;
+  replayCallback = null;
+  replayFrames = null;
+  replayPuzzle = null;
+  if (cb) cb();
+}
+
+function showReplayBar() {
+  let bar = $('replayBar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'replayBar';
+    bar.innerHTML = `
+      <div class="replay-bar-inner">
+        <span class="replay-bar-label">Replay</span>
+        <div class="replay-progress-track"><div class="replay-progress-fill" id="replayProgress"></div></div>
+        <button class="btn btn-secondary btn-sm" id="replayStopBtn">Stop</button>
+      </div>`;
+    $('mainArea').appendChild(bar);
+    $('replayStopBtn').addEventListener('click', stopFullReplay);
+  }
+  bar.classList.remove('hidden');
+}
+
+function hideReplayBar() {
+  const bar = $('replayBar');
+  if (bar) bar.classList.add('hidden');
 }
 
 // ─── Share as Image ──────────────────────────────────────────────────────────
@@ -1518,7 +1535,7 @@ function resetTabLabels() {
     if (stageIdx === -1) return;
     const label = RACE_STAGES[stageIdx].label;
     tab.classList.remove('diff-tab-solved');
-    tab.innerHTML = `${label}<span class="diff-sub">${size}\u00d7${size}</span>`;
+    tab.textContent = label;
   });
 }
 
@@ -1528,15 +1545,14 @@ function initRaceBoards() {
   for (let i = 0; i < RACE_STAGES.length; i++) {
     const stage = RACE_STAGES[i];
     const seed = stageSeed(raceSeed, i);
-    const p = generatePuzzle(stage.size, seed, activeGenerator);
+    const p = generatePuzzle(stage.size, seed);
 
     const rects = [];
     let ci = 0;
-    const colors = getActiveColors();
     for (const clue of p.clues) {
       if (clue.area === 1) {
         const rect = { r: clue.r, c: clue.c, w: 1, h: 1 };
-        Object.assign(rect, colors[ci++ % colors.length]);
+        Object.assign(rect, RECT_COLORS[ci++ % RECT_COLORS.length]);
         rects.push(rect);
       }
     }
@@ -1607,7 +1623,7 @@ function loadBoard(idx) {
 
   const cover = $('coverScreen');
   if (!board.started && !solved) {
-    $('coverSize').textContent = `Stage ${idx + 1}/5: ${stage.label} (${stage.size}×${stage.size})`;
+    $('coverSize').textContent = `Stage ${idx + 1}/5: ${stage.label}`;
     $('coverSeed').textContent = `Race seed: ${raceSeed}`;
     cover.style.display = '';
     cover.classList.remove('hidden');
@@ -1642,9 +1658,7 @@ function updateRaceTabs() {
     tab.classList.toggle('diff-tab-solved', isSolved && !isCurrent);
 
     // Show checkmark on solved tabs
-    tab.innerHTML = isSolved && !isCurrent
-      ? `${label} \u2713<span class="diff-sub">${size}\u00d7${size}</span>`
-      : `${label}<span class="diff-sub">${size}\u00d7${size}</span>`;
+    tab.textContent = isSolved && !isCurrent ? `${label} \u2713` : label;
   });
 }
 
@@ -1687,10 +1701,10 @@ function endRace() {
     row.className = 'race-result-row race-result-clickable';
     const hasReplay = raceSnapshots[i] && raceSnapshots[i].replayLog && raceSnapshots[i].replayLog.length >= 2;
     row.innerHTML =
-      `<span class="race-result-name">${RACE_STAGES[i].label} (${RACE_STAGES[i].size}×${RACE_STAGES[i].size})</span>` +
+      `<span class="race-result-name">${RACE_STAGES[i].label}</span>` +
       `<span class="race-result-time">${formatTime(raceTimes[i])}</span>` +
-      (hasReplay ? `<button class="btn btn-secondary btn-sm race-replay-btn" data-stage="${i}" title="Replay">\u25B6</button>` : '') +
-      `<button class="btn btn-secondary btn-sm race-link-btn" data-seed="${seed}" title="Copy link">&#x1F517;</button>`;
+      (hasReplay ? `<button class="btn btn-secondary btn-sm race-action-btn race-replay-btn" data-stage="${i}" title="Replay">\u25B6</button>` : '') +
+      `<button class="btn btn-secondary btn-sm race-action-btn race-link-btn" data-seed="${seed}" title="Copy link">&#x1F517;</button>`;
     row.addEventListener('click', (e) => {
       if (e.target.closest('.race-link-btn') || e.target.closest('.race-replay-btn')) return;
       raceReviewSource = 'results';
@@ -1779,7 +1793,7 @@ function updateReviewTabs() {
 
     tab.classList.toggle('active', isCurrent);
     tab.classList.remove('diff-tab-solved');
-    tab.innerHTML = `${label}<span class="diff-sub">${size}\u00d7${size}</span>`;
+    tab.textContent = label;
   });
 
   // Add review badge and Done button if not already present
@@ -1835,77 +1849,25 @@ function exitRaceReview() {
   updateActiveDiffTab(currentSize);
 
   if (raceReviewSource === 'history') {
-    goHome();
+    showHomeScreen();
   } else {
     $('raceResultsModal').classList.remove('hidden');
   }
 }
 
-let raceReplayTimer = null;
-
 function showRaceReplay(stageIdx) {
   const snap = raceSnapshots[stageIdx];
   if (!snap || !snap.replayLog || snap.replayLog.length < 2) return;
 
-  const stage = RACE_STAGES[stageIdx];
   const p = snap.puzzle;
 
-  // Re-colorize if needed (history loads strip colors)
-  let log = snap.replayLog;
-  const firstNonEmpty = log.find(f => f.length > 0);
-  if (firstNonEmpty && !firstNonEmpty[0].fill) {
-    log = recolorReplayLog(log);
-  }
+  // Hide modals before starting replay
+  $('raceResultsModal').classList.add('hidden');
 
-  // Deduplicate frames
-  const frames = [log[0]];
-  for (let i = 1; i < log.length; i++) {
-    if (JSON.stringify(log[i]) !== JSON.stringify(log[i - 1]))
-      frames.push(log[i]);
-  }
-
-  const replayCanvas = $('raceReplayCanvas');
-  const statusEl = $('raceReplayStatus');
-
-  const maxPx = 800;
-  const rpx = Math.min(maxPx, p.size * CELL);
-  const rCell = rpx / p.size;
-  const dpr = window.devicePixelRatio || 1;
-
-  replayCanvas.width = Math.round(rpx * dpr);
-  replayCanvas.height = Math.round(rpx * dpr);
-  replayCanvas.style.display = 'block';
-
-  const rctx = replayCanvas.getContext('2d');
-  rctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-  $('replayModalTitle').textContent = `Replay — ${stage.label} (${stage.size}×${stage.size})`;
-  statusEl.textContent = '';
-  $('replayModal').classList.remove('hidden');
-
-  const totalMs = Math.min(10000, Math.max(5000, frames.length * 200));
-  const delayMs = Math.max(50, Math.round(totalMs / frames.length));
-  const lastDelay = 2000;
-
-  function drawFrame(rectsSnap) {
-    rctx.clearRect(0, 0, rpx, rpx);
-    drawGrid(rctx, p.size, rCell, 0, 0, rectsSnap, p.clues,
-      { dash: [2, 4], gridLw: 1, rectLw: 1.5, rectMargin: 1, shadow: false });
-  }
-
-  let frame = 0;
-  if (raceReplayTimer) clearTimeout(raceReplayTimer);
-
-  function animate() {
-    drawFrame(frames[frame]);
-    frame++;
-    if (frame >= frames.length) {
-      raceReplayTimer = setTimeout(() => { frame = 0; animate(); }, lastDelay);
-    } else {
-      raceReplayTimer = setTimeout(animate, delayMs);
-    }
-  }
-  animate();
+  startFullReplay(p, snap.replayLog, () => {
+    // When replay stops, show the race results modal again
+    $('raceResultsModal').classList.remove('hidden');
+  });
 }
 
 function showHistoryReplay(raceIdx, stageIdx) {
@@ -1915,24 +1877,10 @@ function showHistoryReplay(raceIdx, stageIdx) {
   const st = race.stages[stageIdx];
   if (!st.replayLog || st.replayLog.length < 2) return;
 
-  const gen = race.generator || 'natural';
-  const p = generatePuzzle(st.size, st.seed, gen);
-
-  // Build a temporary snapshot for showRaceReplay
-  const tempIdx = stageIdx;
-  const oldSnapshots = raceSnapshots;
-  raceSnapshots = race.stages.map((s, i) => ({
-    puzzle: generatePuzzle(s.size, s.seed, gen),
-    userRects: s.userRects,
-    replayLog: s.replayLog || [],
-  }));
-  showRaceReplay(tempIdx);
-  raceSnapshots = oldSnapshots;
-}
-
-function closeRaceReplay() {
-  if (raceReplayTimer) { clearTimeout(raceReplayTimer); raceReplayTimer = null; }
-  $('replayModal').classList.add('hidden');
+  const p = generatePuzzle(st.size, st.seed);
+  startFullReplay(p, st.replayLog, () => {
+    showHomeScreen();
+  });
 }
 
 // ─── Race History ─────────────────────────────────────────────────────────────
@@ -1960,7 +1908,6 @@ function saveRaceToHistory() {
     raceSeed,
     date: new Date().toISOString(),
     totalMs: total,
-    generator: activeGenerator,
     stages,
   });
 
@@ -1973,10 +1920,8 @@ function viewHistoryBoard(raceIdx, stageIdx) {
   const race = hist[raceIdx];
   if (!race || !race.stages[stageIdx]) return;
 
-  const gen = race.generator || 'natural';
-
   raceSnapshots = race.stages.map(s => {
-    const p = generatePuzzle(s.size, s.seed, gen);
+    const p = generatePuzzle(s.size, s.seed);
     return {
       puzzle: p,
       userRects: s.userRects,
@@ -2045,8 +1990,7 @@ function startHomeAnimation() {
     area: rect.w * rect.h,
   }));
 
-  const colors = getActiveColors();
-  const hasFaces = PALETTES[activePalette].faces;
+  const colors = RECT_COLORS;
 
   const rectDelay = 320;
   const holdTime = 2200;
@@ -2111,7 +2055,7 @@ function startHomeAnimation() {
       cx.strokeRect(rect.c * cellPx + m, rect.r * cellPx + m, rect.w * cellPx - m * 2, rect.h * cellPx - m * 2);
 
       // Happy faces on rects large enough
-      if (hasFaces) {
+      {
         const rw = rect.w * cellPx;
         const rh = rect.h * cellPx;
         const minDim = Math.min(rw, rh);

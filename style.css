@@ -505,12 +505,6 @@ body {
   pointer-events: none;
 }
 
-.diff-sub {
-  font-size: 0.62rem;
-  font-weight: 400;
-  opacity: 0.7;
-}
-
 /* (Race tabs are now handled by the difficulty tabs with .race-mode class) */
 
 /* ── Buttons ─────────────────────────────────────────────────────────── */
@@ -736,60 +730,7 @@ body.focus-mode #focusExit {
   letter-spacing: 0.03em;
 }
 
-/* ── Settings ────────────────────────────────────────────────────────── */
-.settings-section {
-  margin-bottom: 20px;
-}
-.settings-label {
-  display: block;
-  font-size: 0.85rem;
-  color: var(--text-dim);
-  margin-bottom: 10px;
-}
-.palette-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.palette-option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border: 2px solid var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: border-color var(--transition), background var(--transition);
-  background: transparent;
-}
-.palette-option:hover {
-  background: rgba(255,255,255,0.03);
-}
-.palette-option.active {
-  border-color: var(--primary);
-  background: var(--primary-dim);
-}
-.palette-name {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text);
-  min-width: 72px;
-}
-.palette-swatches {
-  display: flex;
-  gap: 3px;
-}
-.palette-swatch {
-  width: 18px;
-  height: 18px;
-  border-radius: 3px;
-  border: 1px solid rgba(255,255,255,0.12);
-}
-.generator-desc {
-  font-size: 0.75rem;
-  color: var(--text-dim);
-  font-weight: 400;
-}
+
 
 /* ── Statistics ──────────────────────────────────────────────────────── */
 .stats-content {
@@ -864,27 +805,40 @@ body.focus-mode #focusExit {
 .race-results-list {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   margin-bottom: 16px;
 }
 .race-result-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
+  padding: 10px 14px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   font-size: 0.88rem;
 }
 .race-result-name {
   color: var(--text);
   font-weight: 600;
+  flex: 1;
 }
 .race-result-time {
   color: var(--primary);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  min-width: 70px;
+  text-align: right;
+}
+.race-action-btn {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  line-height: 1;
+  min-width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
 }
 .race-result-clickable {
   cursor: pointer;
@@ -894,21 +848,38 @@ body.focus-mode #focusExit {
   background: var(--surface-2);
   border-color: var(--border-light);
 }
-.race-link-btn {
-  padding: 2px 6px;
-  font-size: 0.72rem;
-  line-height: 1;
-  margin-left: auto;
-}
 .race-total {
   text-align: center;
-  font-size: 1.15rem;
+  font-size: 1.18rem;
   font-weight: 700;
   color: var(--text);
-  padding: 10px;
+  padding: 12px;
   background: var(--primary-dim);
   border-radius: var(--radius);
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+}
+.race-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.race-seed-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.race-seed-label {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+}
+.race-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.race-actions-right {
+  display: flex;
+  gap: 6px;
 }
 
 /* ── Race History ────────────────────────────────────────────────────── */
@@ -965,6 +936,19 @@ body.focus-mode #focusExit {
   border-radius: 0;
   border: none;
   border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 8px 14px;
+}
+.race-history-stages .race-result-name {
+  flex: 1;
+}
+.race-history-stages .race-result-time {
+  min-width: 70px;
+  text-align: right;
+}
+.race-history-stages .race-replay-btn {
+  margin-left: 8px;
 }
 
 /* ── Win flash overlay ───────────────────────────────────────────────── */
@@ -983,6 +967,46 @@ body.focus-mode #focusExit {
   40%  { opacity: 1; background: rgba(232,146,74,0.35); }
   65%  { opacity: 0.8; background: rgba(91,143,212,0.3); }
   100% { opacity: 0; }
+}
+
+/* ── Replay bar ─────────────────────────────────────────────────────── */
+#replayBar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 10px 16px;
+}
+#replayBar.hidden { display: none; }
+.replay-bar-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+.replay-bar-label {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+.replay-progress-track {
+  flex: 1;
+  height: 6px;
+  background: var(--bg);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.replay-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--primary);
+  border-radius: 3px;
+  transition: width 0.1s linear;
 }
 
 /* ── Mobile ──────────────────────────────────────────────────────────── */
@@ -1018,10 +1042,6 @@ body.focus-mode #focusExit {
   .diff-tab {
     padding: 3px 10px;
     font-size: 0.7rem;
-  }
-
-  .diff-sub {
-    display: none;
   }
 
   .top-timer-group {
