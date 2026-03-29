@@ -313,6 +313,8 @@ window.addEventListener('DOMContentLoaded', () => {
     tab.addEventListener('click', () => {
       const size = parseInt(tab.dataset.size);
 
+      if (replayActive) return;
+
       if (raceActive) {
         // In race mode, switch to the stage matching this size
         const stageIdx = RACE_STAGES.findIndex(s => s.size === size);
@@ -688,7 +690,7 @@ function startFromCover() {
 
 // ─── Pause / resume ──────────────────────────────────────────────────────────
 function togglePause() {
-  if (solved || !timerStart) return;
+  if (solved || replayActive || !timerStart) return;
   if (paused) {
     paused = false;
     $('topPauseBtn').innerHTML = '&#x23F8;';
