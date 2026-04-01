@@ -18,9 +18,9 @@
     pre code { background: none; border: none; padding: 0; color: inherit; }
     .green { color: #80cc60; } .highlight { color: #e8a060; }
     .note { background: #151d2b; border-left: 3px solid #5b8fd4; padding: 12px 16px; margin: 16px 0; border-radius: 0 6px 6px 0; font-size: 0.9rem; color: #8a9db8; }
-    .boards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 20px 0; }
-    .board-example { text-align: center; }
-    .board-example canvas { border: 1px solid #243044; }
+    .boards { display: flex; flex-wrap: wrap; gap: 20px; margin: 20px 0; }
+    .board-example { text-align: center; flex: 0 0 auto; }
+    .board-example canvas { border: 1px solid #243044; display: block; }
     .board-info { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
     .board-seed { font-family: 'Consolas','SF Mono',monospace; font-size: 0.78rem; color: #6b7f9a; }
     .board-stats { font-size: 0.78rem; color: #4a5b72; }
@@ -36,8 +36,25 @@
 
 <hr>
 
-<h2>Example Boards (15&times;15)</h2>
-<div class="boards" id="examples"></div>
+<h2>Example Boards</h2>
+
+<h3>5&times;5 — Easy</h3>
+<div class="boards" id="examples5"></div>
+
+<h3>10&times;10 — Medium</h3>
+<div class="boards" id="examples10"></div>
+
+<h3>15&times;15</h3>
+<div class="boards" id="examples15"></div>
+
+<h3>20&times;20 — Hard</h3>
+<div class="boards" id="examples20"></div>
+
+<h3>30&times;30 — Expert</h3>
+<div class="boards" id="examples30"></div>
+
+<h3>40&times;40 — Master</h3>
+<div class="boards" id="examples40"></div>
 
 <hr>
 
@@ -182,12 +199,6 @@ parent rectangle, the resulting partition always has the guillotine-cut property
 <script>
 // Inline board preview rendering
 (function() {
-  const container = document.getElementById('examples');
-  const seeds = ['15_000001', '15_000002', '15_000003'];
-  const size = 15;
-  const CELL_PX = 20;
-  const px = size * CELL_PX;
-
   const COLORS = [
     { fill: 'rgba(255,210,70,0.82)',  stroke: '#ffd246' },
     { fill: 'rgba(110,215,130,0.82)', stroke: '#6ed782' },
@@ -199,46 +210,68 @@ parent rectangle, the resulting partition always has the guillotine-cut property
     { fill: 'rgba(255,215,150,0.82)', stroke: '#ffd796' },
   ];
 
-  for (const seed of seeds) {
-    const puzzle = generatePuzzle(size, seed);
-    const div = document.createElement('div');
-    div.className = 'board-example';
-    const c = document.createElement('canvas');
-    c.width = px; c.height = px;
-    c.style.width = px + 'px'; c.style.height = px + 'px';
-    const cx = c.getContext('2d');
+  const BOARD_DISPLAY = 200; // target display size in px
 
-    // Draw checkerboard
-    for (let r = 0; r < size; r++)
-      for (let col = 0; col < size; col++) {
-        cx.fillStyle = (r + col) % 2 === 0 ? '#1a2840' : '#192538';
-        cx.fillRect(col * CELL_PX, r * CELL_PX, CELL_PX, CELL_PX);
+  const groups = [
+    { containerId: 'examples5',  size: 5,  seeds: ['5_000001','5_000002','5_000003','5_000004'] },
+    { containerId: 'examples10', size: 10, seeds: ['10_000001','10_000002','10_000003','10_000004'] },
+    { containerId: 'examples15', size: 15, seeds: ['15_000001','15_000002','15_000003'] },
+    { containerId: 'examples20', size: 20, seeds: ['20_000001','20_000002','20_000003'] },
+    { containerId: 'examples30', size: 30, seeds: ['30_000001','30_000002'] },
+    { containerId: 'examples40', size: 40, seeds: ['40_000001','40_000002'] },
+  ];
+
+  for (const { containerId, size, seeds } of groups) {
+    const container = document.getElementById(containerId);
+    // Use 2x resolution for crispness, display at BOARD_DISPLAY px
+    const scale = 2;
+    const cellPx = (BOARD_DISPLAY * scale) / size;
+    const canvasPx = size * cellPx;
+
+    for (const seed of seeds) {
+      const puzzle = generatePuzzle(size, seed);
+      const div = document.createElement('div');
+      div.className = 'board-example';
+      const c = document.createElement('canvas');
+      c.width = canvasPx; c.height = canvasPx;
+      c.style.width = BOARD_DISPLAY + 'px'; c.style.height = BOARD_DISPLAY + 'px';
+      const cx = c.getContext('2d');
+
+      // Draw checkerboard
+      for (let r = 0; r < size; r++)
+        for (let col = 0; col < size; col++) {
+          cx.fillStyle = (r + col) % 2 === 0 ? '#1a2840' : '#192538';
+          cx.fillRect(col * cellPx, r * cellPx, cellPx, cellPx);
+        }
+
+      // Draw solution rects
+      puzzle.clues.forEach((cl, i) => {
+        const color = COLORS[i % COLORS.length];
+        const m = Math.max(1, cellPx * 0.07);
+        cx.fillStyle = color.fill;
+        cx.fillRect(cl.c * cellPx + m, cl.r * cellPx + m, cl.w * cellPx - m * 2, cl.h * cellPx - m * 2);
+        cx.strokeStyle = color.stroke;
+        cx.lineWidth = Math.max(1, cellPx * 0.06);
+        cx.strokeRect(cl.c * cellPx + m, cl.r * cellPx + m, cl.w * cellPx - m * 2, cl.h * cellPx - m * 2);
+      });
+
+      // Draw clue numbers
+      const fontSize = Math.max(8, Math.round(cellPx * 0.38));
+      cx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
+      cx.textAlign = 'center';
+      cx.textBaseline = 'middle';
+      for (const cl of puzzle.clues) {
+        cx.fillStyle = '#fff';
+        cx.fillText(String(cl.area), (cl.numC + 0.5) * cellPx, (cl.numR + 0.5) * cellPx);
       }
 
-    // Draw solution rects
-    puzzle.clues.forEach((cl, i) => {
-      const color = COLORS[i % COLORS.length];
-      const m = 1.5;
-      cx.fillStyle = color.fill;
-      cx.fillRect(cl.c * CELL_PX + m, cl.r * CELL_PX + m, cl.w * CELL_PX - m * 2, cl.h * CELL_PX - m * 2);
-      cx.strokeStyle = color.stroke;
-      cx.lineWidth = 1.5;
-      cx.strokeRect(cl.c * CELL_PX + m, cl.r * CELL_PX + m, cl.w * CELL_PX - m * 2, cl.h * CELL_PX - m * 2);
-    });
-
-    // Draw clue numbers
-    const fontSize = Math.round(CELL_PX * 0.38);
-    cx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
-    cx.textAlign = 'center';
-    cx.textBaseline = 'middle';
-    for (const cl of puzzle.clues) {
-      cx.fillStyle = '#fff';
-      cx.fillText(String(cl.area), (cl.numC + 0.5) * CELL_PX, (cl.numR + 0.5) * CELL_PX);
+      div.appendChild(c);
+      const info = document.createElement('div');
+      info.className = 'board-info';
+      info.innerHTML = `<span class="board-seed">${seed}</span><span class="board-stats">${puzzle.clues.length} rectangles</span>`;
+      div.appendChild(info);
+      container.appendChild(div);
     }
-
-    div.appendChild(c);
-    div.innerHTML += `<div class="board-info"><span class="board-seed">${seed}</span><span class="board-stats">${puzzle.clues.length} rectangles</span></div>`;
-    container.appendChild(div);
   }
 })();
 </script>
